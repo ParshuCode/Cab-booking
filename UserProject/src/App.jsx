@@ -1,11 +1,13 @@
 window.global = window;
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation/Navigation';
+import RoleSelection from './components/RoleSelection/RoleSelection';
 import Home from './components/Home/Home';
 import Login from './components/UserAuth/Login';
 import UserProfile from './components/UserAuth/UserProfile';
 import Register from './components/UserAuth/Register';
 import CabBooking from './components/CabBooking/CabBooking';
+import BookCabPage from './components/CabBooking/BookCabPage';
 import CabRegister from './components/CabDriver/CabRegister';
 import CabLogin from './components/CabDriver/CabLogin';
 import CabDriverDashboard from './components/CabDriver/CabDriverDashboard';
@@ -14,17 +16,33 @@ import Payment from './components/Payment/Payment';
 import MapPage from './pages/MapPage';
 import './App.css';
 import UserRidePage from './components/CabBooking/UserRidePage';
+import BookingFlow from './components/CabBooking/BookingFlow';
+import UserRideTracking from './components/CabBooking/UserRideTracking';
+import DriverDashboardSimple from './components/CabDriver/DriverDashboardSimple';
+import QuickAccess from './components/QuickAccess/QuickAccess';
 
 function App() {
+  const [userRole, setUserRole] = useState(null); // 'passenger' or 'driver'
   const [user, setUser] = useState(null);
   const [cab, setCab] = useState(null);
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [pickupLocation, setPickupLocation] = useState(null);
   const [dropLocation, setDropLocation] = useState(null);
+  const [driverData, setDriverData] = useState(null);
   
 
   useEffect(() => {
+    // Check if role is already selected
+    const savedRole = localStorage.getItem('userRole');
+    if (savedRole) {
+      setUserRole(savedRole);
+    } else {
+      // Set default role to 'passenger' to show QuickAccess on first load
+      setUserRole('passenger');
+      localStorage.setItem('userRole', 'passenger');
+    }
+
     // Check if user is logged in on app load
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
@@ -34,7 +52,20 @@ function App() {
         localStorage.removeItem('user');
       }
     }
+
+    // Check URL parameters for page navigation
+    const params = new URLSearchParams(window.location.search);
+    const page = params.get('page');
+    if (page) {
+      setCurrentPage(page);
+    }
   }, []);
+
+  const handleRoleSelect = (role) => {
+    setUserRole(role);
+    localStorage.setItem('userRole', role);
+    setCurrentPage('home');
+  };
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -48,6 +79,8 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
+    setUserRole(null);
+    localStorage.removeItem('userRole');
     setCurrentPage('home');
     setSelectedBooking(null);
   };
@@ -64,14 +97,18 @@ function App() {
   };
 
   const handleCabLogout = () => {
-  setCab(null);
-  setCurrentPage('cab-login'); // Or go to home, as you prefer
-};
+    setCab(null);
+    setUserRole(null);
+    localStorage.removeItem('userRole');
+    setCurrentPage('home');
+  };
 
   const renderCurrentPage = () => {
     switch (currentPage) {
       case 'home':
         return <Home user={user} onPageChange={handlePageChange} />;
+      case 'quick-access':
+        return <QuickAccess onPageChange={handlePageChange} />;
       case 'login':
         return <Login onLogin={handleLogin} onSwitchToRegister={() => setCurrentPage('register')} />;
       case 'register':
@@ -79,11 +116,13 @@ function App() {
       // case 'book':
       //   return <CabBooking user={user} />;
       case 'book':
-        return <MapPage
+        return <BookCabPage
             user={user}
+            pickupLocation={pickupLocation}
+            dropLocation={dropLocation}
             setPickupLocation={setPickupLocation}
             setDropLocation={setDropLocation}
-            setCurrentPage={setCurrentPage} // so MapPage can move you to user-ride
+            setCurrentPage={setCurrentPage}
           />;
       case 'profile':
         return <UserProfile user={user} />;
@@ -99,20 +138,37 @@ function App() {
       case 'payment':
         return <Payment booking={selectedBooking} onPaymentComplete={handlePaymentComplete} />;
       case 'cab-register':
-        return <CabRegister onRegister={(cabData) => { setCab(cabData); setCurrentPage('cab-dashboard'); }} />;
+        return <CabRegister onRegister={(cabData) => { setCab(cabData); setCurrentPage('driver-dashboard'); }} />;
       case 'cab-login':
-        return <CabLogin onLogin={(cabData) => { setCab(cabData); setCurrentPage('cab-dashboard'); }} />;
+        return <CabLogin onLogin={(cabData) => { setCab(cabData); setCurrentPage('driver-dashboard'); }} />;
       case 'cab-dashboard':
-        return <CabDriverDashboard cab={cab} onLogout={handleCabLogout} />;
+        return <DriverDashboardSimple onLogout={handleCabLogout} />;
+      case 'booking-flow':
+        return <BookingFlow />;
+      case 'ride-tracking':
+        return <UserRideTracking onCancel={() => setCurrentPage('home')} />;
+      case 'driver-dashboard':
+        return <DriverDashboardSimple onLogout={handleCabLogout} />;
       default:
-        return <Home user={user} onPageChange={handlePageChange} />;
+        return <QuickAccess onPageChange={handlePageChange} />;
     }
   };
+
+  // Show role selection if not selected
+  if (!userRole) {
+    return (
+      <div className="App">
+        <RoleSelection onSelectRole={handleRoleSelect} />
+      </div>
+    );
+  }
 
   return (
     <div className="App">
       <Navigation 
+        userRole={userRole}
         user={user} 
+        cab={cab}
         onLogout={handleLogout} 
         onCabLogout={handleCabLogout}
         currentPage={currentPage} 

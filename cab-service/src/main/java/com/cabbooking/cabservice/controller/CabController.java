@@ -146,7 +146,13 @@ public class CabController {
     @GetMapping("/login")
     public ResponseEntity<Cab> loginCab(@RequestParam String cabNumber, @RequestParam String driverPhone) {
         Optional<Cab> cab = cabRepository.findByCabNumberAndDriverPhone(cabNumber, driverPhone);
-        return cab.map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+        if (cab.isPresent()) {
+            Cab cabToLogin = cab.get();
+            cabToLogin.setStatus(Cab.CabStatus.AVAILABLE);
+            Cab updatedCab = cabRepository.save(cabToLogin);
+            return ResponseEntity.ok(updatedCab);
+        }
+        return ResponseEntity.notFound().build();
     }
     
 } 

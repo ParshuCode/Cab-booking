@@ -38,7 +38,7 @@ export default function UserRidePage({ user, pickupLocation, dropLocation }) {
       return;
     }
     pollIntervalRef.current = setInterval(() => {
-      fetch(`http://localhost:8079/api/cabs/${assignedCab.cabId}`)
+      fetch(`http://localhost:8076/api/cabs/${assignedCab.cabId}`)
         .then((res) => res.json())
         .then((cab) => {
           if (cab?.currentLocation)
@@ -56,7 +56,7 @@ export default function UserRidePage({ user, pickupLocation, dropLocation }) {
   // 3. Fetch fare after assignment
   useEffect(() => {
     if (bookingStatus === "assigned" && assignedCab?.bookingId) {
-      fetch(`http://localhost:8079/api/bookings/${assignedCab.bookingId}`)
+      fetch(`http://localhost:8077/api/bookings/${assignedCab.bookingId}`)
         .then(res => res.json())
         .then(data => setFare(data.fare));
     }
@@ -84,7 +84,7 @@ export default function UserRidePage({ user, pickupLocation, dropLocation }) {
         handler: function (response) {
           alert("Payment successful! Payment ID: " + response.razorpay_payment_id);
           // update backend status to COMPLETED:
-          fetch("http://localhost:8079/api/payments", {
+          fetch("http://localhost:8077/api/payments", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -96,7 +96,7 @@ export default function UserRidePage({ user, pickupLocation, dropLocation }) {
             })
           });
           console.log("Booling id to update is:", assignedCab.bookingId);
-          fetch(`http://localhost:8079/api/bookings/${assignedCab.bookingId}/status?status=COMPLETED`, {
+          fetch(`http://localhost:8077/api/bookings/${assignedCab.bookingId}/status?status=COMPLETED`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" }
           }).then(() => {

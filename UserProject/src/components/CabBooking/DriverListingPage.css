@@ -1,0 +1,494 @@
+.driver-listing-page {
+  padding: 20px;
+  max-width: 1000px;
+  margin: 0 auto;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 15px;
+}
+
+.driver-listing-page h2 {
+  color: white;
+  margin-bottom: 25px;
+  text-align: center;
+  font-size: 28px;
+}
+
+.drop-location-section {
+  display: grid;
+  grid-template-columns: 1fr 150px;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.drop-input,
+.cab-type-select {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+}
+
+.drop-input:focus,
+.cab-type-select:focus {
+  outline: none;
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
+}
+
+/* Request Status */
+.request-status {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #ffc107;
+}
+
+.request-status.active {
+  border-left-color: #28a745;
+  animation: pulse 1s infinite;
+}
+
+.request-status.expired {
+  border-left-color: #dc3545;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.request-status p {
+  margin: 0 0 10px 0;
+  font-weight: bold;
+  color: #333;
+}
+
+.timer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.timer-display {
+  font-size: 32px;
+  font-weight: bold;
+  color: #dc3545;
+  background: #f8f9fa;
+  padding: 8px 16px;
+  border-radius: 6px;
+  min-width: 80px;
+  text-align: center;
+}
+
+.cancel-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.cancel-btn:hover {
+  background: #c82333;
+  transform: scale(1.05);
+}
+
+/* Messages Section */
+.messages-section {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.messages-section h4 {
+  margin-top: 0;
+  color: #333;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.message {
+  padding: 10px;
+  border-radius: 6px;
+  background: #f8f9fa;
+  border-left: 3px solid #667eea;
+}
+
+.message.driver {
+  border-left-color: #28a745;
+  background: #e8f5e9;
+}
+
+.message strong {
+  color: #667eea;
+}
+
+.message.driver strong {
+  color: #28a745;
+}
+
+.message p {
+  margin: 5px 0;
+  color: #333;
+}
+
+.message small {
+  color: #666;
+  font-size: 12px;
+}
+
+.give-chance-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  margin-top: 8px;
+  transition: all 0.3s;
+}
+
+.give-chance-btn:hover {
+  background: #218838;
+  transform: scale(1.05);
+}
+
+/* Drivers List */
+.drivers-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.driver-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.driver-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.driver-card.active {
+  border-color: #28a745;
+  background: #f0f8f0;
+}
+
+.driver-info {
+  margin-bottom: 15px;
+}
+
+.driver-info h3 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.driver-phone {
+  margin: 4px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.cab-details {
+  margin: 4px 0;
+  color: #667eea;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.distance {
+  margin: 4px 0;
+  color: #764ba2;
+  font-size: 14px;
+}
+
+.rating {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #ffc107;
+}
+
+.driver-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.request-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 14px;
+}
+
+.request-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.request-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.waiting {
+  text-align: center;
+  padding: 12px;
+  background: #f0f8ff;
+  border-radius: 8px;
+}
+
+.waiting p {
+  margin: 0 0 10px 0;
+  color: #667eea;
+  font-weight: bold;
+}
+
+.simulate-accept-btn,
+.simulate-message-btn {
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 12px;
+  transition: all 0.3s;
+}
+
+.simulate-accept-btn {
+  background: #28a745;
+  color: white;
+}
+
+.simulate-accept-btn:hover {
+  background: #218838;
+}
+
+.simulate-message-btn {
+  background: #17a2b8;
+  color: white;
+}
+
+.simulate-message-btn:hover {
+  background: #138496;
+}
+
+/* Status Messages */
+.loading,
+.no-drivers {
+  text-align: center;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  color: #667eea;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.no-drivers {
+  color: #dc3545;
+}
+
+/* Trip Details Section */
+.trip-details-section {
+  margin-bottom: 20px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.detail-card {
+  background: white;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 20px;
+  justify-content: space-around;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.detail-icon {
+  font-size: 24px;
+}
+
+.detail-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 18px;
+  color: #333;
+  font-weight: 700;
+}
+
+.detail-value.fare {
+  color: #28a745;
+  font-size: 20px;
+}
+
+/* Cab Type Selection */
+.cab-type-section {
+  background: white;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.cab-type-section label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.cab-type-options {
+  display: flex;
+  gap: 10px;
+}
+
+.cab-type-btn {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #e0e6f2;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: #666;
+}
+
+.cab-type-btn:hover {
+  border-color: #667eea;
+  background: #f9fafb;
+}
+
+.cab-type-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.05);
+}
+
+.cab-type-btn .cab-icon {
+  font-size: 24px;
+}
+
+/* Request Status Message */
+.request-status-message {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 600;
+  animation: slideDown 0.3s ease;
+}
+
+.request-status-message.error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Drivers Heading */
+.drivers-heading {
+  color: white;
+  font-size: 18px;
+  margin-bottom: 15px;
+  margin-top: 10px;
+}
+
+.back-btn {
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.back-btn:hover {
+  background: #667eea;
+  color: white;
+  transform: scale(1.02);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .drivers-list {
+    grid-template-columns: 1fr;
+  }
+
+  .drop-location-section {
+    grid-template-columns: 1fr;
+  }
+
+  .timer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timer-display {
+    text-align: center;
+  }
+
+  .detail-card {
+    flex-direction: column;
+  }
+
+  .cab-type-options {
+    flex-wrap: wrap;
+  }
+}

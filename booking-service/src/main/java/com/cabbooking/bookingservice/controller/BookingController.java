@@ -132,4 +132,17 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
     }
+
+    // NEW: Driver acceptance when selected from list by user
+    @PostMapping("/{bookingId}/accept-by-driver/{cabId}")
+    public ResponseEntity<Booking> acceptByDriver(
+            @PathVariable Long bookingId,
+            @PathVariable Long cabId) {
+        try {
+            Booking accepted = bookingService.acceptRideByDriver(bookingId, cabId);
+            return ResponseEntity.ok(accepted);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
+        }
+    }
 } 

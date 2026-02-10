@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './CabBooking.css';
 
-const CAB_API_BASE_URL = "http://localhost:8079/api/cabs";
-const BOOKING_API_BASE_URL = "http://localhost:8079/api/bookings";
+const CAB_API_BASE_URL = "http://localhost:8076/api/cabs";
+const BOOKING_API_BASE_URL = "http://localhost:8077/api/bookings";
 
 const CabBooking = ({ user }) => {
   const [formData, setFormData] = useState({

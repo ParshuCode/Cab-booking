@@ -281,7 +281,7 @@
 import React, { useState, useEffect } from 'react';
 import './MyBookings.css';
 
-const API_BASE_URL = "http://localhost:8079/api/bookings";
+const API_BASE_URL = "http://localhost:8077/api/bookings";
 //const API_BASE_URL = `${import.meta.env.VITE_BACKEND_URL}/booking`;
 const MyBookings = ({ user }) => {
   const [bookings, setBookings] = useState([]);

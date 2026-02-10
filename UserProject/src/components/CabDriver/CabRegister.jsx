@@ -103,7 +103,7 @@ export default function CabRegister({ onRegister }) {
     e.preventDefault();
     setMsg("");
     setLoading(true);
-    fetch("http://localhost:8079/api/cabs", {
+    fetch("http://localhost:8076/api/cabs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)

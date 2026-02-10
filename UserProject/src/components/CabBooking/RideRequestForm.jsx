@@ -26,7 +26,7 @@ export default function RideRequestForm({ user, pickupLocation, dropLocation , o
         const pickupLocationStr = `${pickupLocation.lat},${pickupLocation.lng}`;
         const dropLocationStr = `${dropLocation.lat},${dropLocation.lng}`;
 
-        fetch("http://localhost:8079/api/bookings", {
+        fetch("http://localhost:8077/api/bookings", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

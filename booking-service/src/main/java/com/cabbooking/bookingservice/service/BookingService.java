@@ -111,34 +111,43 @@ public class BookingService {
         
         Booking savedBooking = bookingRepository.save(booking);
 
-        // ------- Notify Cab-Service Here --------
-        RideRequestDTO rideReq = new RideRequestDTO(
-            savedBooking.getId(),
-            pickupLocation.getLatitude(),
-            pickupLocation.getLongitude(),
-            dropLocation.getLatitude(),
-            dropLocation.getLongitude(),
-            savedBooking.getUserId()
-        );
-//        try {
-//            String url = cabServiceUrl + "/api/cabs/notify/request";
-//            System.out.println("➡️ POSTing to CAB SERVICE: " + url + ", body=" + rideReq);
-//            restTemplate.postForEntity(url, rideReq, Void.class);
-//        } catch (Exception ex) {
-//            // Log error, maybe retry or mark booking as failed
-//            System.err.println("Failed to notify cab-service: " + ex.getMessage());
-//        }
-        try {
-            String url = cabServiceUrl + "/api/cabs/notify/request";
-            System.out.println("REST NOTIFY: POST to " + url + " with " + rideReq);
-            restTemplate.postForEntity(url, rideReq, Void.class);
-            System.out.println(">>> NOTIFIED CAB SERVICE DONE.");
-        } catch (Exception ex) {
-            System.err.println("Failed to notify cab-service: " + ex.getMessage());
-        }
-        // ----------------------------------------
+        // NOTE: NO AUTO-NOTIFY HERE!
+        // User will select driver from list, then call acceptRideByDriver() endpoint
+        // This allows user to pick specific driver instead of broadcast to all
 
         return savedBooking;
+    }
+    
+    // NEW: Called when driver accepts the ride request
+    public Booking acceptRideByDriver(Long bookingId, Long cabId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        
+        booking.setCabId(cabId);
+        booking.setStatus(Booking.BookingStatus.CONFIRMED);
+        
+        Booking updatedBooking = bookingRepository.save(booking);
+        
+        // Notify cab-service about assignment
+        RideRequestDTO rideReq = new RideRequestDTO(
+            updatedBooking.getId(),
+            updatedBooking.getPickupLocation().getLatitude(),
+            updatedBooking.getPickupLocation().getLongitude(),
+            updatedBooking.getDropLocation().getLatitude(),
+            updatedBooking.getDropLocation().getLongitude(),
+            updatedBooking.getUserId()
+        );
+        
+        try {
+            String url = cabServiceUrl + "/api/cabs/" + cabId + "/accept-ride";
+            System.out.println("REST ACCEPT: POST to " + url);
+            restTemplate.postForEntity(url, rideReq, Void.class);
+            System.out.println(">>> DRIVER ASSIGNMENT NOTIFIED.");
+        } catch (Exception ex) {
+            System.err.println("Failed to notify cab-service about acceptance: " + ex.getMessage());
+        }
+        
+        return updatedBooking;
     }
     
     public Booking updateBookingStatus(Long id, Booking.BookingStatus status) {

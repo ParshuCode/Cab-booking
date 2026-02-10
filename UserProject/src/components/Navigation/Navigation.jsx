@@ -3,10 +3,11 @@ import React, { useState } from 'react';
 import './Navigation.css';
 
 const Navigation = ({
+  userRole,             // 'passenger' or 'driver'
   user,
-  cab,                  // <-- Pass this from App.jsx
+  cab,
   onLogout,
-  onCabLogout,           // <-- Add in App.jsx; clears cab state
+  onCabLogout,
   currentPage,
   onPageChange,
 }) => {
@@ -26,6 +27,10 @@ const Navigation = ({
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
+  
+  // Only show navigation if role is selected
+  if (!userRole) return null;
+
   return (
     <nav className="navigation">
       <div className="nav-container">
@@ -35,99 +40,119 @@ const Navigation = ({
         <div className={`nav-menu ${isMobileMenuOpen ? 'active' : ''}`}>
           <div className="nav-links">
 
-            {/* --- Regular User Navigation --- */}
-            <button
-              className={`nav-link ${currentPage === 'home' ? 'active' : ''}`}
-              onClick={() => handlePageChange('home')}
-            >
-              Home
-            </button>
-            <button
-              className={`nav-link ${currentPage === 'book' ? 'active' : ''}`}
-              onClick={() => handlePageChange(user ? 'book' : 'register')}
-            >
-              Book Cab
-            </button>
-            {user && (
-              <button
-                className={`nav-link ${currentPage === 'bookings' ? 'active' : ''}`}
-                onClick={() => handlePageChange('bookings')}
-              >
-                My Bookings
-              </button>
-            )}
-            {user && (
-              <button
-                className={`nav-link ${currentPage === 'profile' ? 'active' : ''}`}
-                onClick={() => handlePageChange('profile')}
-              >
-                Profile
-              </button>
-            )}
-
-            {/* --- Cab Driver Navigation --- */}
-            {!cab && (
+            {/* === PASSENGER NAVIGATION === */}
+            {userRole === 'passenger' && (
               <>
                 <button
-                  className={`nav-link ${currentPage === 'cab-login' ? 'active' : ''}`}
-                  onClick={() => handlePageChange('cab-login')}
+                  className={`nav-link ${currentPage === 'home' ? 'active' : ''}`}
+                  onClick={() => handlePageChange('home')}
                 >
-                  Driver Login
+                  Home
                 </button>
                 <button
-                  className={`nav-link ${currentPage === 'cab-register' ? 'active' : ''}`}
-                  onClick={() => handlePageChange('cab-register')}
+                  className={`nav-link ${currentPage === 'book' ? 'active' : ''}`}
+                  onClick={() => handlePageChange(user ? 'book' : 'login')}
                 >
-                  Register as Driver
+                  Book Cab
                 </button>
+                {user && (
+                  <button
+                    className={`nav-link ${currentPage === 'bookings' ? 'active' : ''}`}
+                    onClick={() => handlePageChange('bookings')}
+                  >
+                    My Bookings
+                  </button>
+                )}
+                {user && (
+                  <button
+                    className={`nav-link ${currentPage === 'profile' ? 'active' : ''}`}
+                    onClick={() => handlePageChange('profile')}
+                  >
+                    Profile
+                  </button>
+                )}
               </>
             )}
-            {cab && (
-              <button
-                className={`nav-link ${currentPage === 'cab-dashboard' ? 'active' : ''}`}
-                onClick={() => handlePageChange('cab-dashboard')}
-              >
-                Driver Dashboard
-              </button>
+
+            {/* === DRIVER NAVIGATION === */}
+            {userRole === 'driver' && (
+              <>
+                <button
+                  className={`nav-link ${currentPage === 'home' ? 'active' : ''}`}
+                  onClick={() => handlePageChange('home')}
+                >
+                  Home
+                </button>
+                {!cab && (
+                  <>
+                    <button
+                      className={`nav-link ${currentPage === 'cab-login' ? 'active' : ''}`}
+                      onClick={() => handlePageChange('cab-login')}
+                    >
+                      Driver Login
+                    </button>
+                    <button
+                      className={`nav-link ${currentPage === 'cab-register' ? 'active' : ''}`}
+                      onClick={() => handlePageChange('cab-register')}
+                    >
+                      Register as Driver
+                    </button>
+                  </>
+                )}
+                {cab && (
+                  <button
+                    className={`nav-link ${currentPage === 'cab-dashboard' ? 'active' : ''}`}
+                    onClick={() => handlePageChange('cab-dashboard')}
+                  >
+                    Driver Dashboard
+                  </button>
+                )}
+              </>
             )}
 
           </div>
           <div className="nav-auth">
-            {/* --- User Auth --- */}
-            {user ? (
-              <div className="user-info">
-                <span className="user-name">
-                  Welcome, {user.firstName} {user.lastName}
-                </span>
-                <button className="btn-logout" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            ) : cab ? (
-              /* --- Cab Driver Auth View --- */
-              <div className="user-info">
-                <span className="user-name">
-                  Driver: {cab.driverName} ({cab.cabNumber})
-                </span>
-                <button className="btn-logout" onClick={handleCabLogout}>
-                  Logout
-                </button>
-              </div>
-            ) : (
-              <div className="auth-buttons">
-                <button
-                  className={`nav-link ${currentPage === 'login' ? 'active' : ''}`}
-                  onClick={() => handlePageChange('login')}
-                >
-                  Login
-                </button>
-                <button
-                  className={`nav-link ${currentPage === 'register' ? 'active' : ''}`}
-                  onClick={() => handlePageChange('register')}
-                >
-                  Register
-                </button>
-              </div>
+            {/* === PASSENGER AUTH === */}
+            {userRole === 'passenger' && (
+              user ? (
+                <div className="user-info">
+                  <span className="user-name">
+                    Welcome, {user.firstName} {user.lastName}
+                  </span>
+                  <button className="btn-logout" onClick={handleLogout}>
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <div className="auth-buttons">
+                  <button
+                    className={`nav-link ${currentPage === 'login' ? 'active' : ''}`}
+                    onClick={() => handlePageChange('login')}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    className={`nav-link ${currentPage === 'register' ? 'active' : ''}`}
+                    onClick={() => handlePageChange('register')}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              )
+            )}
+
+            {/* === DRIVER AUTH === */}
+            {userRole === 'driver' && (
+              cab ? (
+                <div className="user-info">
+                  <span className="user-name">
+                    Driver: {cab.driverName} ({cab.cabNumber})
+                  </span>
+                  <button className="btn-logout" onClick={handleCabLogout}>
+                    Logout
+                  </button>
+                </div>
+              ) : null
             )}
           </div>
         </div>

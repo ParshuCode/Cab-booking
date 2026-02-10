@@ -88,9 +88,9 @@ const Home = ({ user, onPageChange }) => {
               <div className="hero-buttons">
                 <button
                   className="btn-primary btn-large"
-                  onClick={() => onPageChange('book')}
+                  onClick={() => window.location.href = '/?page=booking-flow'}
                 >
-                  🗺️ Book Now
+                  🗺️ Book Now (New)
                 </button>
                 <button
                   className="btn-secondary btn-large"

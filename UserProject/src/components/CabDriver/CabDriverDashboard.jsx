@@ -465,7 +465,7 @@ export default function CabDriverDashboard({ cab, onLogout }) {
     let watchId, interval;
 
     function sendLocation(lat, lng) {
-      fetch(`http://localhost:8079/api/cabs/${cab.id}/location`, {
+      fetch(`http://localhost:8076/api/cabs/${cab.id}/location`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ latitude: lat, longitude: lng })

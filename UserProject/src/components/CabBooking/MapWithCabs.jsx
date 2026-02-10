@@ -126,13 +126,8 @@
 import React, { useEffect, useState } from "react";
 import { GoogleMap, Marker, useLoadScript, DirectionsRenderer } from "@react-google-maps/api";
 import RideRequestForm from "./RideRequestForm";
-// const apiKey = "AIzaSyDz2h3E18hbaMTjXc4YkFHSBsWed3uM1c8";
-//const apiKey = "AIzaSyCz04N0OeDkXsNfqwSFTKflWnBGzUmYybA";
-//const apiKey = "AIzaSyDzLJEkb7u7v7Ji6L21yGuPe15_JsNX6bs";
-//const apiKey = "AIzaSyA-bHYM4q3hc0sNocP6NYeoGLEt8YHkAHQ";
-// const apiKey = "AIzaSyDs3buEupAF-JNtllrQrnYIXcU4QpRir6g";
-// const apiKey = "AIzaSyA_sSVkeOaLPIlEyVwgCLHMib5WLpQjk_g";
-const apiKey = "AIzaSyAvkO47IMYZhyxBi8vo3ZR_B2V35tZay_c";
+
+const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "AIzaSyAvkO47IMYZhyxBi8vo3ZR_B2V35tZay_c";
 
 
 const MapWithCabs = ({
@@ -157,7 +152,7 @@ const MapWithCabs = ({
   // Fetch all available/nearby cabs
   useEffect(() => {
     if (userLocation) {
-      fetch(`/api/cabs/nearby?latitude=${userLocation.lat}&longitude=${userLocation.lng}&radiusKm=3`)
+      fetch(`http://localhost:8076/api/cabs/nearby?latitude=${userLocation.lat}&longitude=${userLocation.lng}&radiusKm=3`)
         .then(res => res.json())
         .then(setCabs)
         .catch(() => setCabs([]));
@@ -206,27 +201,23 @@ const MapWithCabs = ({
           zoom={14}
           mapContainerStyle={{ width: "100%", height: "100%" }}
           onClick={handleMapClick}
+          options={{
+            mapTypeControl: true,
+            fullscreenControl: true,
+          }}
         >
-          {/* User marker */}
+          {/* User marker using standard Marker */}
           {userLocation && (
             <Marker
               position={userLocation}
-              icon={{
-                url: "/user.png",
-                scaledSize: { width: 40, height: 40 }
-              }}
-              label="Pickup"
+              title="Pickup Location"
             />
           )}
           {/* Driver marker */}
           {driverLocation && (
             <Marker
               position={driverLocation}
-              icon={{
-                url: "/cab.png",
-                scaledSize: new window.google.maps.Size(38, 38)
-              }}
-              label={assignedCab ? "Your Cab" : "Cab"}
+              title={assignedCab ? "Your Cab" : "Cab"}
             />
           )}
           {/* Show all other cabs in booking mode only */}
@@ -237,18 +228,14 @@ const MapWithCabs = ({
                 lat: cab.currentLocation.latitude,
                 lng: cab.currentLocation.longitude
               }}
-              icon="/cab.png"
+              title={`Cab ${cab.id}`}
             />
           )}
           {/* Drop marker */}
           {activeDrop && (
             <Marker
               position={activeDrop}
-              icon={{
-                url: "/drop.png",
-                scaledSize: { width: 40, height: 40 }
-              }}
-              label="Drop"
+              title="Drop Location"
             />
           )}
           {/* Directions/blue line polyline */}
