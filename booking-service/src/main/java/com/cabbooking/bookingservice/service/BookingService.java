@@ -1,0 +1,255 @@
+package com.cabbooking.bookingservice.service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.cabbooking.bookingservice.dto.AssignedCabInfo;
+import com.cabbooking.bookingservice.dto.BookingRequest;
+import com.cabbooking.bookingservice.dto.Cab;
+import com.cabbooking.bookingservice.dto.RideRequestDTO;
+import com.cabbooking.bookingservice.model.Booking;
+import com.cabbooking.bookingservice.model.Location;
+import com.cabbooking.bookingservice.model.LocationType;
+import com.cabbooking.bookingservice.repository.BookingRepository;
+
+
+
+@Service
+public class BookingService {
+    
+	@Autowired
+	private RestTemplate restTemplate;
+
+	@Value("${cab.service.url:http://localhost:8076}")  // Use your cab-service host/port
+	private String cabServiceUrl;
+	
+    @Autowired
+    private BookingRepository bookingRepository;
+    
+    @Autowired
+    private GeocodingService geocodingService;
+    
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+    
+    @Autowired
+    private DistanceCalculationService distanceCalculationService;
+    
+    public List<Booking> getAllBookings() {
+        return bookingRepository.findAll();
+    }
+    
+    public Optional<Booking> getBookingById(Long id) {
+        return bookingRepository.findById(id);
+    }
+    
+    public List<Booking> getBookingsByUserId(Long userId) {
+        return bookingRepository.findByUserId(userId);
+    }
+    
+    public List<Booking> getBookingsByCabId(Long cabId) {
+        return bookingRepository.findByCabId(cabId);
+    }
+    
+    public List<Booking> getBookingsByStatus(Booking.BookingStatus status) {
+        return bookingRepository.findByStatus(status);
+    }
+    
+    public List<Booking> getBookingsByUserIdAndStatus(Long userId, Booking.BookingStatus status) {
+        return bookingRepository.findByUserIdAndStatus(userId, status);
+    }
+    
+    private Location parseLocationString(String latLngCommaString, LocationType type) {
+        if (latLngCommaString == null || !latLngCommaString.contains(",")) {
+            throw new IllegalArgumentException("Invalid location string: " + latLngCommaString);
+        }
+        String[] parts = latLngCommaString.split(",");
+        double lat = Double.parseDouble(parts[0].trim());
+        double lng = Double.parseDouble(parts[1].trim());
+        Location location = new Location();
+        location.setLatitude(lat);
+        location.setLongitude(lng);
+        location.setType(type);
+        return location;
+    }
+    
+    public Booking createBooking(BookingRequest request) {
+        // Geocode addresses to get coordinates
+//        Location pickupLocation = geocodingService.geocodeAddress(request.getPickupLocation(), LocationType.PICKUP);
+//        Location dropLocation = geocodingService.geocodeAddress(request.getDropLocation(), LocationType.DROP);
+        
+        Location pickupLocation = parseLocationString(request.getPickupLocation(), LocationType.PICKUP);
+        Location dropLocation = parseLocationString(request.getDropLocation(), LocationType.DROP);
+        
+        // Calculate distance automatically using coordinates
+        double distance = distanceCalculationService.calculateDistance(pickupLocation, dropLocation);
+        
+        // Create booking with enhanced location data
+        Booking booking = new Booking();
+        booking.setUserId(request.getUserId());
+        booking.setCabId(request.getCabId());
+        booking.setPickupLocation(pickupLocation);
+        booking.setDropLocation(dropLocation);
+        booking.setDistance(distance);
+        
+        // Calculate fare based on distance and cab rates
+        // In real app, this would call cab service to get rates
+        double baseFare = 50.0;
+        double perKmRate = 10.0;
+        double fare = distanceCalculationService.calculateFare(distance, baseFare, perKmRate);
+        booking.setFare(fare);
+        
+        booking.setStatus(Booking.BookingStatus.PENDING);
+        booking.setBookingTime(LocalDateTime.now());
+        
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // ------- Notify Cab-Service Here --------
+        RideRequestDTO rideReq = new RideRequestDTO(
+            savedBooking.getId(),
+            pickupLocation.getLatitude(),
+            pickupLocation.getLongitude(),
+            dropLocation.getLatitude(),
+            dropLocation.getLongitude(),
+            savedBooking.getUserId()
+        );
+//        try {
+//            String url = cabServiceUrl + "/api/cabs/notify/request";
+//            System.out.println("➡️ POSTing to CAB SERVICE: " + url + ", body=" + rideReq);
+//            restTemplate.postForEntity(url, rideReq, Void.class);
+//        } catch (Exception ex) {
+//            // Log error, maybe retry or mark booking as failed
+//            System.err.println("Failed to notify cab-service: " + ex.getMessage());
+//        }
+        try {
+            String url = cabServiceUrl + "/api/cabs/notify/request";
+            System.out.println("REST NOTIFY: POST to " + url + " with " + rideReq);
+            restTemplate.postForEntity(url, rideReq, Void.class);
+            System.out.println(">>> NOTIFIED CAB SERVICE DONE.");
+        } catch (Exception ex) {
+            System.err.println("Failed to notify cab-service: " + ex.getMessage());
+        }
+        // ----------------------------------------
+
+        return savedBooking;
+    }
+    
+    public Booking updateBookingStatus(Long id, Booking.BookingStatus status) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        
+        booking.setStatus(status);
+        
+        if (status == Booking.BookingStatus.IN_PROGRESS) {
+            booking.setPickupTime(LocalDateTime.now());
+        } else if (status == Booking.BookingStatus.COMPLETED) {
+            booking.setDropTime(LocalDateTime.now());
+        }
+        
+        return bookingRepository.save(booking);
+    }
+    
+    public Booking updateBooking(Long id, Booking bookingDetails) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        
+        // Update locations if provided
+        if (bookingDetails.getPickupLocation() != null) {
+            booking.setPickupLocation(bookingDetails.getPickupLocation());
+        }
+        if (bookingDetails.getDropLocation() != null) {
+            booking.setDropLocation(bookingDetails.getDropLocation());
+        }
+        
+        // Recalculate distance and fare if locations changed
+        if (bookingDetails.getPickupLocation() != null || bookingDetails.getDropLocation() != null) {
+            double newDistance = distanceCalculationService.calculateDistance(
+                booking.getPickupLocation(), booking.getDropLocation());
+            booking.setDistance(newDistance);
+            
+            // Recalculate fare
+            double baseFare = 50.0;
+            double perKmRate = 10.0;
+            double newFare = distanceCalculationService.calculateFare(newDistance, baseFare, perKmRate);
+            booking.setFare(newFare);
+        }
+        
+        return bookingRepository.save(booking);
+    }
+    
+//    public Booking acceptBooking(Long bookingId, Long cabId) {
+//        Booking booking = bookingRepository.findById(bookingId)
+//                .orElseThrow(() -> new RuntimeException("Booking not found"));
+//
+//        // You might want to check booking status: if already accepted, throw/reject
+//        if (booking.getCabId() != null && booking.getStatus() != Booking.BookingStatus.PENDING) {
+//            throw new RuntimeException("Booking already accepted");
+//        }
+//
+//        // Assign the cab and mark as CONFIRMED (or appropriate)
+//        booking.setCabId(cabId);
+//        booking.setStatus(Booking.BookingStatus.CONFIRMED); // or .IN_PROGRESS
+//        return bookingRepository.save(booking);
+//    }
+    
+    public Booking acceptBooking(Long bookingId, Long cabId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        if (booking.getCabId() != null && booking.getStatus() != Booking.BookingStatus.PENDING) {
+            throw new RuntimeException("Booking already accepted");
+        }
+
+        booking.setCabId(cabId);
+        booking.setStatus(Booking.BookingStatus.CONFIRMED);
+        Booking saved = bookingRepository.save(booking);
+        System.out.println("**********Booking saved********");
+
+        // ------------ Fetch real cab/driver info ------------ //
+        String cabUrl = cabServiceUrl + "/api/cabs/" + cabId; // cabServiceUrl from config
+
+        Cab driverCab = null;
+        try {
+            driverCab = restTemplate.getForObject(cabUrl, Cab.class);
+        } catch (Exception e) {
+            System.err.println("Error fetching cab info: "+e.getMessage());
+        }
+
+        AssignedCabInfo assigned = new AssignedCabInfo();
+        assigned.setBookingId(saved.getId());
+        assigned.setUserId(saved.getUserId());
+        assigned.setCabId(cabId);
+
+        if (driverCab != null) {
+            assigned.setDriverName(driverCab.getDriverName());
+            assigned.setCabNumber(driverCab.getCabNumber());
+            assigned.setModel(driverCab.getModel());
+            assigned.setCabType(driverCab.getCabType().toString());
+            // ...add any field you like!
+        }
+        System.out.println("AssignedCabInfo to user: " + assigned);
+        
+        // send WebSocket to user as before:
+        messagingTemplate.convertAndSend(
+            "/queue/user-" + saved.getUserId(),
+            assigned
+        );
+        System.out.println("Notify user: /queue/user-" + saved.getUserId() + " " + assigned);
+        return saved;
+    }
+    
+    public void deleteBooking(Long id) {
+        bookingRepository.deleteById(id);
+    }
+    
+    public void cancelBooking(Long id) {
+        updateBookingStatus(id, Booking.BookingStatus.CANCELLED);
+    }
+} 

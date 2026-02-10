@@ -1,0 +1,294 @@
+
+// import React, { useEffect, useState } from "react";
+// import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
+// import RideRequestForm from "./RideRequestForm";
+
+// // Your Google Maps API key here
+// const apiKey = "AIzaSyDz2h3E18hbaMTjXc4YkFHSBsWed3uM1c8";
+
+// const MapWithCabs = ({
+//     userLocation,
+//     user,
+//     driverLocation,
+//     assignedCab,
+//     setPickupLocation,
+//     setDropLocation,
+//     setCurrentPage
+// }) => {
+//     const { isLoaded } = useLoadScript({ googleMapsApiKey: apiKey });
+//     const [cabs, setCabs] = useState([]);
+//     const [dropLocation, setDropLoc] = useState(null);
+
+//     // Fetch all available/nearby cabs on map center/init
+//     useEffect(() => {
+//         if (userLocation) {
+//             fetch(
+//                 `/api/cabs/nearby?latitude=${userLocation.lat}&longitude=${userLocation.lng}&radiusKm=3`
+//             )
+//                 .then(res => res.json())
+//                 .then(setCabs)
+//                 .catch(() => setCabs([]));
+//         }
+//     }, [userLocation]);
+
+//     // Handler when user clicks on map
+//     const handleMapClick = e => {
+//         const { latLng } = e;
+//         setDropLoc({
+//             lat: latLng.lat(),
+//             lng: latLng.lng()
+//         });
+//     };
+
+//     if (!isLoaded) return <div>Loading map...</div>;
+
+//     return (
+//         <div>
+//             <div style={{ width: "100%", height: "400px" }}>
+//                 <GoogleMap
+//                     center={userLocation}
+//                     zoom={13}
+//                     mapContainerStyle={{ width: "100%", height: "100%" }}
+//                     onClick={handleMapClick}
+//                 >
+//                     {/* User marker */}
+//                     <Marker
+//                         position={userLocation}
+//                         icon={{
+//                             url: "/user.png",
+//                             scaledSize: { width: 40, height: 40 }
+//                         }}
+//                     />
+//                     {/* Assigned driver marker (Uber-like, after ride assigned) */}
+//                     {driverLocation && (
+//                         <Marker
+//                             position={driverLocation}
+//                             icon={{
+//                                 url: "/cab.png",
+//                                 scaledSize: new window.google.maps.Size(38, 38)
+//                             }}
+//                             label={assignedCab ? "Your Cab" : undefined}
+//                         />
+//                     )}
+//                     {/* Show all other cabs */}
+//                     {cabs.map(
+//                         cab =>
+//                             !assignedCab || cab.id !== assignedCab.cabId || !driverLocation ? (
+//                                 <Marker
+//                                     key={cab.id}
+//                                     position={{
+//                                         lat: cab.currentLocation.latitude,
+//                                         lng: cab.currentLocation.longitude
+//                                     }}
+//                                     icon="/cab.png"
+//                                 />
+//                             ) : null
+//                     )}
+//                     {/* Drop location marker (user's selected drop) */}
+//                     {dropLocation && (
+//                         <Marker
+//                             position={dropLocation}
+//                             icon={{
+//                                 url: "/drop.png",
+//                                 scaledSize: { width: 40, height: 40 }
+//                             }}
+//                         />
+//                     )}
+//                 </GoogleMap>
+//             </div>
+
+//             {/* Show ride request form only when drop is selected and before assignment */}
+//             {dropLocation && (
+//                 <RideRequestForm
+//                     user={user}
+//                     pickupLocation={userLocation}
+//                     dropLocation={dropLocation}
+//                     onSuccess={() => {
+//                         // THE BELOW ONLY WORKS if these setters exist as props!
+//                         setPickupLocation && setPickupLocation(userLocation);
+//                         setDropLocation && setDropLocation(dropLocation);
+//                         setCurrentPage && setCurrentPage('user-ride');
+//                     }}
+//                 />
+//             )}
+
+//             <p>
+//                 <small>
+//                     Click on the map to set your <b>drop location</b>.
+//                 </small>
+//             </p>
+//         </div>
+//     );
+// };
+
+// export default MapWithCabs;
+
+import React, { useEffect, useState } from "react";
+import { GoogleMap, Marker, useLoadScript, DirectionsRenderer } from "@react-google-maps/api";
+import RideRequestForm from "./RideRequestForm";
+// const apiKey = "AIzaSyDz2h3E18hbaMTjXc4YkFHSBsWed3uM1c8";
+//const apiKey = "AIzaSyCz04N0OeDkXsNfqwSFTKflWnBGzUmYybA";
+//const apiKey = "AIzaSyDzLJEkb7u7v7Ji6L21yGuPe15_JsNX6bs";
+//const apiKey = "AIzaSyA-bHYM4q3hc0sNocP6NYeoGLEt8YHkAHQ";
+// const apiKey = "AIzaSyDs3buEupAF-JNtllrQrnYIXcU4QpRir6g";
+// const apiKey = "AIzaSyA_sSVkeOaLPIlEyVwgCLHMib5WLpQjk_g";
+const apiKey = "AIzaSyAvkO47IMYZhyxBi8vo3ZR_B2V35tZay_c";
+
+
+const MapWithCabs = ({
+  userLocation,
+  user,
+  driverLocation,
+  assignedCab,
+  setPickupLocation,
+  setDropLocation,
+  setCurrentPage,
+  dropLocation: propDropLocation,
+  showRoute = false                // <-- Show blue line when true
+}) => {
+  const { isLoaded } = useLoadScript({ googleMapsApiKey: apiKey });
+  const [cabs, setCabs] = useState([]);
+  const [dropLocation, setDropLoc] = useState(null);
+  const [directions, setDirections] = useState(null);
+
+  // Determine which drop to use (for booking or tracking mode)
+  const activeDrop = showRoute && propDropLocation ? propDropLocation : dropLocation;
+
+  // Fetch all available/nearby cabs
+  useEffect(() => {
+    if (userLocation) {
+      fetch(`/api/cabs/nearby?latitude=${userLocation.lat}&longitude=${userLocation.lng}&radiusKm=3`)
+        .then(res => res.json())
+        .then(setCabs)
+        .catch(() => setCabs([]));
+    }
+  }, [userLocation]);
+
+  // Handle setting drop via map in booking mode only
+  const handleMapClick = e => {
+    if (showRoute) return; // Don't allow editing drop in tracking mode!
+    const { latLng } = e;
+    setDropLoc({ lat: latLng.lat(), lng: latLng.lng() });
+  };
+
+  // DirectionsService: draw route from pickup to drop on "showRoute"
+  useEffect(() => {
+    if (
+      isLoaded && showRoute && userLocation && propDropLocation // only in tracking mode
+    ) {
+      const directionsService = new window.google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: userLocation,
+          destination: propDropLocation,
+          travelMode: window.google.maps.TravelMode.DRIVING
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK) {
+            setDirections(result);
+          } else {
+            setDirections(null);
+          }
+        }
+      );
+    } else {
+      setDirections(null);
+    }
+  }, [isLoaded, showRoute, userLocation, propDropLocation]);
+
+  if (!isLoaded) return <div>Loading map...</div>;
+
+  return (
+    <div>
+      <div style={{ width: "100%", height: "400px" }}>
+        <GoogleMap
+          center={driverLocation || userLocation}
+          zoom={14}
+          mapContainerStyle={{ width: "100%", height: "100%" }}
+          onClick={handleMapClick}
+        >
+          {/* User marker */}
+          {userLocation && (
+            <Marker
+              position={userLocation}
+              icon={{
+                url: "/user.png",
+                scaledSize: { width: 40, height: 40 }
+              }}
+              label="Pickup"
+            />
+          )}
+          {/* Driver marker */}
+          {driverLocation && (
+            <Marker
+              position={driverLocation}
+              icon={{
+                url: "/cab.png",
+                scaledSize: new window.google.maps.Size(38, 38)
+              }}
+              label={assignedCab ? "Your Cab" : "Cab"}
+            />
+          )}
+          {/* Show all other cabs in booking mode only */}
+          {!showRoute && cabs.map(cab =>
+            <Marker
+              key={cab.id}
+              position={{
+                lat: cab.currentLocation.latitude,
+                lng: cab.currentLocation.longitude
+              }}
+              icon="/cab.png"
+            />
+          )}
+          {/* Drop marker */}
+          {activeDrop && (
+            <Marker
+              position={activeDrop}
+              icon={{
+                url: "/drop.png",
+                scaledSize: { width: 40, height: 40 }
+              }}
+              label="Drop"
+            />
+          )}
+          {/* Directions/blue line polyline */}
+          {showRoute && directions && (
+            <DirectionsRenderer
+              directions={directions}
+              options={{
+                suppressMarkers: true,
+                polylineOptions: {
+                  strokeColor: "#297bff",
+                  strokeOpacity: 0.9,
+                  strokeWeight: 6,
+                }
+              }}
+            />
+          )}
+        </GoogleMap>
+      </div>
+      {/* Ride request form should show only in booking mode, before route is shown! */}
+      {!showRoute && dropLocation && (
+        <RideRequestForm
+          user={user}
+          pickupLocation={userLocation}
+          dropLocation={dropLocation}
+          onSuccess={() => {
+            setPickupLocation && setPickupLocation(userLocation);
+            setDropLocation && setDropLocation(dropLocation);
+            setCurrentPage && setCurrentPage('user-ride');
+          }}
+        />
+      )}
+      <p>
+        <small>
+          {!showRoute &&
+            <>Click on the map to set your <b>drop location</b>.</>
+          }
+        </small>
+      </p>
+    </div>
+  );
+};
+
+export default MapWithCabs;
