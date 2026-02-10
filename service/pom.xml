@@ -31,7 +31,7 @@
 		<spring-cloud.version>2023.0.6</spring-cloud.version>
 	</properties>
 	<dependencies>
-		<dependency>
+		<java.version>21</java.version>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
