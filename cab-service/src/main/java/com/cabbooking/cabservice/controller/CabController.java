@@ -34,6 +34,9 @@ public class CabController {
     
     @Autowired
     private CabRepository cabRepository;
+
+    @Autowired
+    private com.cabbooking.cabservice.security.JwtTokenProvider tokenProvider;
     
     @GetMapping
     public ResponseEntity<List<Cab>> getAllCabs() {
@@ -150,6 +153,11 @@ public class CabController {
             Cab cabToLogin = cab.get();
             cabToLogin.setStatus(Cab.CabStatus.AVAILABLE);
             Cab updatedCab = cabRepository.save(cabToLogin);
+            
+            // Generate Token
+            String token = tokenProvider.generateToken(cabToLogin.getCabNumber(), "ROLE_DRIVER");
+            updatedCab.setToken(token);
+            
             return ResponseEntity.ok(updatedCab);
         }
         return ResponseEntity.notFound().build();

@@ -46,7 +46,7 @@ const CabBooking = ({ user }) => {
       const distance = Math.random() * 20 + 5; // Random distance 5-25 km
       const selectedCabType = cabTypes.find(type => type.value === formData.cabType);
       const fare = baseFare + (distance * 10 * selectedCabType.price);
-      
+
       setEstimatedFare(Math.round(fare));
     } catch (err) {
       console.error('Error calculating fare:', err);
@@ -64,7 +64,7 @@ const CabBooking = ({ user }) => {
 
   //   try {
   //     const response = await fetch(`/api/cabs/search/location?location=${encodeURIComponent(formData.pickupLocation)}`);
-      
+
   //     if (response.ok) {
   //       const cabs = await response.json();
   //       setAvailableCabs(cabs.filter(cab => cab.status === 'AVAILABLE'));
@@ -78,30 +78,43 @@ const CabBooking = ({ user }) => {
   //   }
   // };
   const searchAvailableCabs = async () => {
-  if (!formData.pickupLocation) {
-    setError('Please enter pickup location');
-    return;
-  }
-  setLoading(true);
-  setError('');
-  try {
-    const response = await fetch(`${CAB_API_BASE_URL}/search/location?location=${encodeURIComponent(formData.pickupLocation)}`);
-    if (response.ok) {
-      const cabs = await response.json();
-      setAvailableCabs(cabs.filter(cab => cab.status === 'AVAILABLE'));
-    } else {
-      setError('Failed to search for cabs');
+    if (!formData.pickupLocation) {
+      setError('Please enter pickup location');
+      return;
     }
-  } catch (err) {
-    setError('Error searching for cabs');
-  } finally {
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    setError('');
+
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (user && user.token) {
+      headers['Authorization'] = `Bearer ${user.token}`;
+    }
+
+    try {
+      const response = await fetch(`${CAB_API_BASE_URL}/search/location?location=${encodeURIComponent(formData.pickupLocation)}`, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (response.ok) {
+        const cabs = await response.json();
+        setAvailableCabs(cabs.filter(cab => cab.status === 'AVAILABLE'));
+      } else {
+        setError('Failed to search for cabs');
+      }
+    } catch (err) {
+      setError('Error searching for cabs');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!user) {
       setError('Please login to book a cab');
       return;
@@ -126,6 +139,7 @@ const CabBooking = ({ user }) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
         },
         body: JSON.stringify(bookingData)
       });
@@ -159,7 +173,7 @@ const CabBooking = ({ user }) => {
         <h2>Book Your Cab</h2>
         {error && <div className="error-message">{error}</div>}
         {success && <div className="success-message">{success}</div>}
-        
+
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
@@ -239,9 +253,9 @@ const CabBooking = ({ user }) => {
           )}
 
           <div className="button-group">
-            <button 
-              type="button" 
-              className="btn-secondary" 
+            <button
+              type="button"
+              className="btn-secondary"
               onClick={searchAvailableCabs}
               disabled={loading || !formData.pickupLocation}
             >

@@ -20,6 +20,9 @@ public class UserController {
     
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private com.cabbooking.userservice.security.JwtTokenProvider tokenProvider;
     
     @PostMapping("/register")
     public ResponseEntity<User> registerUser(@Valid @RequestBody UserRegistrationRequest request) {
@@ -33,9 +36,12 @@ public class UserController {
     
     @PostMapping("/login")
     public ResponseEntity<User> loginUser(@Valid @RequestBody LoginRequest request) {
-        Optional<User> user = userService.authenticateUser(request);
-        if (user.isPresent()) {
-            return ResponseEntity.ok(user.get());
+        Optional<User> userOpt = userService.authenticateUser(request);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String token = tokenProvider.generateToken(user.getEmail(), "ROLE_" + user.getRole().name());
+            user.setToken(token);
+            return ResponseEntity.ok(user);
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }

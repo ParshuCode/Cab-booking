@@ -41,6 +41,12 @@ public class Cab {
     @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "current_location_id")
     private Location currentLocation;
+
+    @Transient
+    private String token;
+
+    public String getToken() { return token; }
+    public void setToken(String token) { this.token = token; }
     
     public Cab() {}
     

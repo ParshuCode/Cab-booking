@@ -129,7 +129,7 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
 
       // Save to localStorage for user tracking page
       localStorage.setItem('currentUserRide', JSON.stringify(bookingRequest));
-      
+
       // Simulate driver receiving the request
       localStorage.setItem('pendingRideRequest', JSON.stringify({
         ...bookingRequest,
@@ -244,7 +244,7 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
                       <span className="rating-count">({driver.totalRides} rides)</span>
                     </div>
 
-                    <button 
+                    <button
                       className={`select-driver-btn ${selectedDriver?.id === driver.id ? "selected-btn" : ""}`}
                       onClick={() => handleDriverSelect(driver)}
                     >
@@ -414,9 +414,12 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
             </div>
           </div>
         </div>
-      
-      
-        )}
+
+
+      )}
     </div>
-    );
+  );
 }
+  ;
+
+export default BookingFlow;

@@ -265,25 +265,25 @@
 //       .catch(() => setMsg("Network error while completing ride!"));
 //   };
 
-  // // Poll booking status during "ride in progress"
-  // useEffect(() => {
-  //   if (!activeRide) return;
-  //   const interval = setInterval(() => {
-  //     fetch(`http://localhost:8077/api/bookings/${activeRide.bookingId}`)
-  //       .then((res) => res.json())
-  //       .then((data) => {
-  //         console.log("Polled booking status:", data.status, "for booking", activeRide.bookingId);
-  //         if (
-  //           data.status &&
-  //           data.status.toUpperCase() === "COMPLETED"
-  //         ) {
-  //           setMsg("Ride completed! Ready for next ride.");
-  //           setActiveRide(null);
-  //         }
-  //       });
-  //   }, 4000);
-  //   return () => clearInterval(interval);
-  // }, [activeRide]);
+// // Poll booking status during "ride in progress"
+// useEffect(() => {
+//   if (!activeRide) return;
+//   const interval = setInterval(() => {
+//     fetch(`http://localhost:8077/api/bookings/${activeRide.bookingId}`)
+//       .then((res) => res.json())
+//       .then((data) => {
+//         console.log("Polled booking status:", data.status, "for booking", activeRide.bookingId);
+//         if (
+//           data.status &&
+//           data.status.toUpperCase() === "COMPLETED"
+//         ) {
+//           setMsg("Ride completed! Ready for next ride.");
+//           setActiveRide(null);
+//         }
+//       });
+//   }, 4000);
+//   return () => clearInterval(interval);
+// }, [activeRide]);
 
 //   // --- UI Rendering ---
 //   return (
@@ -465,9 +465,12 @@ export default function CabDriverDashboard({ cab, onLogout }) {
     let watchId, interval;
 
     function sendLocation(lat, lng) {
+      const headers = { "Content-Type": "application/json" };
+      if (cab && cab.token) headers["Authorization"] = `Bearer ${cab.token}`;
+
       fetch(`http://localhost:8076/api/cabs/${cab.id}/location`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: headers,
         body: JSON.stringify({ latitude: lat, longitude: lng })
       });
     }
@@ -501,7 +504,7 @@ export default function CabDriverDashboard({ cab, onLogout }) {
     } else {
       interval = setInterval(() => {
         setMyLoc(prev => {
-            console.log("Randomly assign")
+          console.log("Randomly assign")
           const dlat = (Math.random() - 0.5) * 0.002;
           const dlng = (Math.random() - 0.5) * 0.002;
           const newLoc = {
@@ -531,9 +534,9 @@ export default function CabDriverDashboard({ cab, onLogout }) {
         console.log(ride)
         // Only show requests within 10km (use smaller for production)
         const d = haversine(myLoc.lat, myLoc.lng, ride.pickupLat, ride.pickupLng);
-            if (d <= 20) {
-            setRideRequests(prev => (prev.some(r => r.bookingId === ride.bookingId) ? prev : [ride, ...prev]));
-            }
+        if (d <= 20) {
+          setRideRequests(prev => (prev.some(r => r.bookingId === ride.bookingId) ? prev : [ride, ...prev]));
+        }
         setRideRequests(prev => (prev.some(r => r.bookingId === ride.bookingId) ? prev : [ride, ...prev]));
       });
     };
@@ -546,9 +549,12 @@ export default function CabDriverDashboard({ cab, onLogout }) {
 
   // --- 3. Accept Ride and flag as active ---
   const handleAccept = ride => {
+    const headers = { "Content-Type": "application/json" };
+    if (cab && cab.token) headers["Authorization"] = `Bearer ${cab.token}`;
+
     fetch("http://localhost:8077/api/bookings/accept", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify({ bookingId: ride.bookingId, cabId: cab.id })
     })
       .then(res => {
@@ -568,9 +574,12 @@ export default function CabDriverDashboard({ cab, onLogout }) {
   const handleCompleteRide = () => {
     // You should implement this endpoint in your backend!
     if (!activeRide) return;
+    const headers = { "Content-Type": "application/json" };
+    if (cab && cab.token) headers["Authorization"] = `Bearer ${cab.token}`;
+
     fetch(`http://localhost:8077/api/bookings/${activeRide.bookingId}/status?status=COMPLETED`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
     })
       .then(res => {
         if (res.ok) {
@@ -582,11 +591,14 @@ export default function CabDriverDashboard({ cab, onLogout }) {
       })
       .catch(() => setMsg("Network error while completing ride!"));
   };
-    // Poll booking status during "ride in progress"
+  // Poll booking status during "ride in progress"
   useEffect(() => {
     if (!activeRide) return;
     const interval = setInterval(() => {
-      fetch(`http://localhost:8077/api/bookings/${activeRide.bookingId}`)
+      const headers = {};
+      if (cab && cab.token) headers["Authorization"] = `Bearer ${cab.token}`;
+
+      fetch(`http://localhost:8077/api/bookings/${activeRide.bookingId}`, { headers })
         .then((res) => res.json())
         .then((data) => {
           console.log("Polled booking status:", data.status, "for booking", activeRide.bookingId);
@@ -621,7 +633,7 @@ export default function CabDriverDashboard({ cab, onLogout }) {
             <b>Drop:</b> {activeRide.dropLat}, {activeRide.dropLng}<br />
             <b>User Id:</b> {activeRide.userId}<br />
             <em>Live trip! Location auto-updating...</em><br />
-            <button style={{marginTop:12}} onClick={handleCompleteRide}>Complete Ride</button>
+            <button style={{ marginTop: 12 }} onClick={handleCompleteRide}>Complete Ride</button>
           </div>
         </>
       ) : (
@@ -632,7 +644,7 @@ export default function CabDriverDashboard({ cab, onLogout }) {
           ) : (
             rideRequests.map(ride => (
               <div key={ride.bookingId}
-                   style={{ margin: 10, padding: 10, background: "#f9f9f9", borderRadius: 6, boxShadow: "0 2px 8px #00000011" }}>
+                style={{ margin: 10, padding: 10, background: "#f9f9f9", borderRadius: 6, boxShadow: "0 2px 8px #00000011" }}>
                 <b>Booking:</b> {ride.bookingId}<br />
                 <b>Pickup:</b> {ride.pickupLat}, {ride.pickupLng}<br />
                 <b>Drop:</b> {ride.dropLat}, {ride.dropLng}<br />

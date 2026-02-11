@@ -40,6 +40,12 @@ public class User {
     private UserRole role = UserRole.USER;
     
     private boolean active = true;
+
+    @Transient
+    private String token;
+
+    public String getToken() { return token; }
+    public void setToken(String token) { this.token = token; }
     
     public User() {}
     
