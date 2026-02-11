@@ -2,8 +2,12 @@ package com.cabbooking.userservice.service;
 
 import com.cabbooking.userservice.dto.LoginRequest;
 import com.cabbooking.userservice.dto.UserRegistrationRequest;
+import com.cabbooking.userservice.exception.ResourceNotFoundException;
+import com.cabbooking.userservice.exception.UnauthorizedException;
+import com.cabbooking.userservice.exception.UserAlreadyExistsException;
 import com.cabbooking.userservice.model.User;
 import com.cabbooking.userservice.repository.UserRepository;
+import com.cabbooking.userservice.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -19,10 +23,13 @@ public class UserService {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
     
     public User registerUser(UserRegistrationRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("User with this email already exists");
+            throw new UserAlreadyExistsException("User with email " + request.getEmail() + " already exists");
         }
         
         User user = new User();
@@ -46,7 +53,11 @@ public class UserService {
                 return userOpt;
             }
         }
-        return Optional.empty();
+        throw new UnauthorizedException("Invalid email or password");
+    }
+
+    public String generateToken(String email) {
+        return jwtTokenProvider.generateTokenFromEmail(email);
     }
     
     public List<User> getAllUsers() {
@@ -63,7 +74,7 @@ public class UserService {
     
     public User updateUser(Long id, User userDetails) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User with id " + id + " not found"));
         
         user.setFirstName(userDetails.getFirstName());
         user.setLastName(userDetails.getLastName());
@@ -75,7 +86,7 @@ public class UserService {
     
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User with id " + id + " not found"));
         user.setActive(false);
         userRepository.save(user);
     }

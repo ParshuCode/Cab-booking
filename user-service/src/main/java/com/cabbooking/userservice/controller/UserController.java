@@ -1,6 +1,7 @@
 package com.cabbooking.userservice.controller;
 
 import com.cabbooking.userservice.dto.LoginRequest;
+import com.cabbooking.userservice.dto.LoginResponse;
 import com.cabbooking.userservice.dto.UserRegistrationRequest;
 import com.cabbooking.userservice.model.User;
 import com.cabbooking.userservice.service.UserService;
@@ -23,19 +24,28 @@ public class UserController {
     
     @PostMapping("/register")
     public ResponseEntity<User> registerUser(@Valid @RequestBody UserRegistrationRequest request) {
-        try {
-            User user = userService.registerUser(request);
-            return ResponseEntity.ok(user);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
-        }
+        User user = userService.registerUser(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(user);
     }
     
     @PostMapping("/login")
-    public ResponseEntity<User> loginUser(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<LoginResponse> loginUser(@Valid @RequestBody LoginRequest request) {
         Optional<User> user = userService.authenticateUser(request);
         if (user.isPresent()) {
-            return ResponseEntity.ok(user.get());
+            User authenticatedUser = user.get();
+            String token = userService.generateToken(authenticatedUser.getEmail());
+            
+            LoginResponse response = new LoginResponse(
+                    token,
+                    authenticatedUser.getId(),
+                    authenticatedUser.getEmail(),
+                    authenticatedUser.getFirstName(),
+                    authenticatedUser.getLastName(),
+                    authenticatedUser.getPhoneNumber(),
+                    authenticatedUser.getAddress(),
+                    authenticatedUser.getRole()
+            );
+            return ResponseEntity.ok(response);
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
@@ -62,21 +72,13 @@ public class UserController {
     
     @PutMapping("/{id}")
     public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User userDetails) {
-        try {
-            User updatedUser = userService.updateUser(id, userDetails);
-            return ResponseEntity.ok(updatedUser);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        User updatedUser = userService.updateUser(id, userDetails);
+        return ResponseEntity.ok(updatedUser);
     }
     
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        try {
-            userService.deleteUser(id);
-            return ResponseEntity.ok().build();
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        userService.deleteUser(id);
+        return ResponseEntity.ok().build();
     }
 } 

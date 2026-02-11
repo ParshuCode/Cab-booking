@@ -420,3 +420,5 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
     </div>
     );
 }
+
+export default BookingFlow; 
