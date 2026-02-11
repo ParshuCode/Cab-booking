@@ -41,6 +41,9 @@ public class BookingService {
     
     @Autowired
     private DistanceCalculationService distanceCalculationService;
+
+    @Autowired
+    private com.cabbooking.bookingservice.repository.NotificationRepository notificationRepository;
     
     public List<Booking> getAllBookings() {
         return bookingRepository.findAll();
@@ -126,6 +129,19 @@ public class BookingService {
         booking.setCabId(cabId);
         booking.setStatus(Booking.BookingStatus.CONFIRMED);
         
+        // Fetch Cab Details from Cab Service to persist in Booking
+        try {
+            String url = cabServiceUrl + "/api/cabs/" + cabId;
+            Cab driverCab = restTemplate.getForObject(url, Cab.class);
+            if (driverCab != null) {
+                booking.setDriverName(driverCab.getDriverName());
+                booking.setDriverPhone(driverCab.getDriverPhone());
+                booking.setCabNumber(driverCab.getCabNumber());
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching cab details: " + e.getMessage());
+        }
+        
         Booking updatedBooking = bookingRepository.save(booking);
         
         // Notify cab-service about assignment
@@ -140,13 +156,20 @@ public class BookingService {
         
         try {
             String url = cabServiceUrl + "/api/cabs/" + cabId + "/accept-ride";
-            System.out.println("REST ACCEPT: POST to " + url);
             restTemplate.postForEntity(url, rideReq, Void.class);
-            System.out.println(">>> DRIVER ASSIGNMENT NOTIFIED.");
         } catch (Exception ex) {
             System.err.println("Failed to notify cab-service about acceptance: " + ex.getMessage());
         }
         
+        // Save Notification for User
+        com.cabbooking.bookingservice.model.Notification notif = new com.cabbooking.bookingservice.model.Notification(
+            updatedBooking.getUserId(),
+            "USER",
+            "Your ride has been accepted by " + (booking.getDriverName() != null ? booking.getDriverName() : "a driver") + "! Driver is on the way.",
+            "RIDE_ACCEPTED"
+        );
+        notificationRepository.save(notif);
+
         return updatedBooking;
     }
     
@@ -158,8 +181,10 @@ public class BookingService {
         
         if (status == Booking.BookingStatus.IN_PROGRESS) {
             booking.setPickupTime(LocalDateTime.now());
+            notificationRepository.save(new com.cabbooking.bookingservice.model.Notification(booking.getUserId(), "USER", "Your ride has started!", "RIDE_STARTED"));
         } else if (status == Booking.BookingStatus.COMPLETED) {
             booking.setDropTime(LocalDateTime.now());
+            notificationRepository.save(new com.cabbooking.bookingservice.model.Notification(booking.getUserId(), "USER", "Your ride is completed. Please pay " + booking.getFare(), "RIDE_COMPLETED"));
         }
         
         return bookingRepository.save(booking);

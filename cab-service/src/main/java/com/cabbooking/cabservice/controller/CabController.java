@@ -163,4 +163,12 @@ public class CabController {
         return ResponseEntity.notFound().build();
     }
     
+    @GetMapping("/drivers/available")
+    public ResponseEntity<List<Cab>> getAvailableDrivers() {
+        // Return all cabs that are available (status = AVAILABLE)
+        // In a real app, you might filter by location or map to a simpler DTO
+        List<Cab> availableCabs = cabService.getAvailableCabs();
+        return ResponseEntity.ok(availableCabs);
+    }
+    
 } 

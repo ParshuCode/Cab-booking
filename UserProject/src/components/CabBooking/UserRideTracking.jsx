@@ -1,185 +1,220 @@
 import React, { useState, useEffect } from 'react';
 import './UserRideTracking.css';
 
-/**
- * User Ride Tracking Component
- * Shows active ride status and driver details
- * Updates in real-time when driver accepts
- */
-const UserRideTracking = ({ onCancel }) => {
-  const [activeRide, setActiveRide] = useState(null);
-  const [driverAccepted, setDriverAccepted] = useState(false);
-  const [driverDetails, setDriverDetails] = useState(null);
-  const [waitingTime, setWaitingTime] = useState(0);
-  const [pollingInterval, setPollingInterval] = useState(null);
+const UserRideTracking = ({ assignedCab, onCancel }) => {
+  const [booking, setBooking] = useState(null);
+  const [status, setStatus] = useState("PENDING");
+  const [loading, setLoading] = useState(true);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
-  // Initialize active ride from localStorage
+  // Initialize with passed assignedCab if available, or try localStorage
   useEffect(() => {
-    const savedRide = localStorage.getItem('currentUserRide');
-    if (savedRide) {
-      setActiveRide(JSON.parse(savedRide));
+    let bookingId = assignedCab?.bookingId;
+    if (!bookingId) {
+      // Fallback to local storage if user refreshed
+      const saved = localStorage.getItem('currentBookingId');
+      if (saved) bookingId = JSON.parse(saved);
     }
 
-    // Poll for driver acceptance every 2 seconds
-    const interval = setInterval(() => {
-      const savedRide = localStorage.getItem('currentUserRide');
-      const driverInfo = localStorage.getItem('driverAcceptedRide');
-      
-      if (savedRide && driverInfo) {
-        setActiveRide(JSON.parse(savedRide));
-        setDriverAccepted(true);
-        setDriverDetails(JSON.parse(driverInfo));
-        clearInterval(interval); // Stop polling once driver accepts
+    if (bookingId) {
+      localStorage.setItem('currentBookingId', JSON.stringify(bookingId));
+      fetchBookingStatus(bookingId);
+
+      // Poll for updates
+      const interval = setInterval(() => fetchBookingStatus(bookingId), 3000);
+      return () => clearInterval(interval);
+    } else {
+      setLoading(false);
+    }
+  }, [assignedCab]);
+
+  const fetchBookingStatus = async (bookingId) => {
+    try {
+      const res = await fetch(`http://localhost:8077/api/bookings/${bookingId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBooking(data);
+        setStatus(data.status);
       }
-
-      // Update waiting time
-      setWaitingTime(prev => prev + 1);
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleCancelRide = () => {
-    localStorage.removeItem('currentUserRide');
-    localStorage.removeItem('driverAcceptedRide');
-    if (onCancel) onCancel();
+    } catch (err) {
+      console.error("Error fetching booking:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!activeRide) {
-    return (
-      <div className="ride-tracking-container">
-        <div className="empty-state">
-          <div className="empty-icon">🚕</div>
-          <h2>No Active Ride</h2>
-          <p>Start a new booking to see your ride status</p>
-        </div>
+  const handlePayment = async () => {
+    setPaymentProcessing(true);
+    try {
+      // Call Payment API
+      const res = await fetch("http://localhost:8077/api/payments/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          amount: booking.fare,
+          paymentMethod: "UPI"
+        })
+      });
+
+      if (res.ok) {
+        setStatus("PAID");
+        alert("Payment Successful! Thank you for riding with us.");
+        localStorage.removeItem('currentBookingId');
+        if (onCancel) onCancel(); // Actually finishes the flow
+      } else {
+        alert("Payment failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Payment Error:", err);
+      alert("Payment error.");
+    } finally {
+      setPaymentProcessing(false);
+    }
+  };
+
+  if (loading) return <div className="loading-screen">Loading Ride Details...</div>;
+
+  if (!booking) return (
+    <div className="ride-tracking-container">
+      <div className="empty-state">
+        <h2>No Active Ride</h2>
+        <button className="back-btn" onClick={onCancel}>Book a Ride</button>
       </div>
-    );
-  }
+    </div>
+  );
 
   return (
     <div className="ride-tracking-container">
-      <div className="ride-tracking-header">
-        <h2>🚗 Ride Status</h2>
-        <button className="cancel-ride-btn" onClick={handleCancelRide}>
-          ❌ Cancel Ride
-        </button>
+      {/* Header Status Bar */}
+      <div className={`status-header ${status}`}>
+        <h2>{getStatusMessage(status)}</h2>
+        <div className="booking-id">ID: #{booking.id}</div>
       </div>
 
-      {!driverAccepted ? (
-        <div className="waiting-for-driver">
-          <div className="waiting-animation">
-            <div className="pulse-circle"></div>
-            <div className="pulse-circle pulse-delay-1"></div>
-            <div className="pulse-circle pulse-delay-2"></div>
-          </div>
-          <h3>⏳ Waiting for driver to accept...</h3>
-          <p>Waiting time: {Math.floor(waitingTime / 2)}s</p>
+      {/* Main Content Grid */}
+      <div className="tracking-grid">
 
-          <div className="ride-details-card">
-            <h4>📍 Your Booking Details</h4>
-            <div className="detail-row">
-              <span className="label">Pickup:</span>
-              <span className="value">{activeRide.pickupLocation}</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Dropoff:</span>
-              <span className="value">{activeRide.dropoffLocation}</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Distance:</span>
-              <span className="value">{activeRide.tripDistance.toFixed(1)} km</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Fare:</span>
-              <span className="value highlight">₹{activeRide.estimatedFare.toFixed(0)}</span>
-            </div>
-            <div className="detail-row">
-              <span className="label">Vehicle:</span>
-              <span className="value">{activeRide.cabName}</span>
-            </div>
+        {/* Left: Ride Timeline */}
+        <div className="timeline-card">
+          <h3>Ride Progress</h3>
+          <div className="timeline">
+            <TimelineItem
+              active={true}
+              completed={status !== "PENDING"}
+              icon="📅"
+              title="Booking Confirmed"
+              time={new Date(booking.bookingTime).toLocaleTimeString()}
+            />
+            <TimelineItem
+              active={status === "IN_PROGRESS" || status === "COMPLETED" || status === "PAID"}
+              completed={status === "COMPLETED" || status === "PAID"}
+              icon="🚖"
+              title="Driver Arrived"
+              time={booking.pickupTime ? new Date(booking.pickupTime).toLocaleTimeString() : "--:--"}
+            />
+            <TimelineItem
+              active={status === "COMPLETED" || status === "PAID"}
+              completed={status === "PAID"}
+              icon="🏁"
+              title="Ride Completed"
+              time={booking.dropTime ? new Date(booking.dropTime).toLocaleTimeString() : "--:--"}
+            />
           </div>
         </div>
-      ) : (
-        <div className="driver-accepted">
-          <div className="acceptance-badge">✅ Driver Accepted!</div>
 
-          <div className="driver-card">
-            <div className="driver-header-section">
-              <div className="driver-large-avatar">
-                {driverDetails?.name?.charAt(0) || '?'}
+        {/* Right: Driver & Cab Info */}
+        <div className="info-column">
+          {/* Driver Card */}
+          <div className="driver-card-large">
+            <div className="driver-header">
+              <div className="driver-avatar">{booking.driverName ? booking.driverName.charAt(0) : "D"}</div>
+              <div>
+                <h3>{booking.driverName || "Assigning Driver..."}</h3>
+                <p>{booking.cabNumber || "Vehicle Info"}</p>
               </div>
-              <div className="driver-main-info">
-                <h3>{driverDetails?.name || 'Driver'}</h3>
-                <div className="driver-rating">
-                  ⭐ {driverDetails?.rating || 4.8} • {driverDetails?.totalRides || 0} rides
-                </div>
-              </div>
+              <div className="rating-pill">⭐ 4.8</div>
             </div>
-
-            <div className="vehicle-section">
-              <div className="vehicle-info">
-                <span className="label">🚗 Vehicle:</span>
-                <span className="value">{driverDetails?.cabNumber}</span>
-              </div>
-              <div className="vehicle-info">
-                <span className="label">Type:</span>
-                <span className="value">{activeRide.cabName}</span>
-              </div>
-            </div>
-
-            <div className="location-section">
-              <h4>📍 Location Details</h4>
-              <div className="detail-row">
-                <span className="label">Driver Distance:</span>
-                <span className="value">{driverDetails?.distanceFromUser?.toFixed(1) || '0'} km away</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">ETA:</span>
-                <span className="value">{driverDetails?.responseTime || '2 min'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Driver Current Location:</span>
-                <span className="value">Lat: {driverDetails?.currentLocation?.lat?.toFixed(4)}, Lng: {driverDetails?.currentLocation?.lng?.toFixed(4)}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Your Location:</span>
-                <span className="value">Lat: {activeRide.pickupCoords?.lat?.toFixed(4)}, Lng: {activeRide.pickupCoords?.lng?.toFixed(4)}</span>
-              </div>
-            </div>
-
-            <div className="trip-section">
-              <h4>🛣️ Your Trip</h4>
-              <div className="detail-row">
-                <span className="label">Pickup:</span>
-                <span className="value">{activeRide.pickupLocation}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Dropoff:</span>
-                <span className="value">{activeRide.dropoffLocation}</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Distance:</span>
-                <span className="value">{activeRide.tripDistance?.toFixed(1)} km</span>
-              </div>
-              <div className="detail-row">
-                <span className="label">Estimated Fare:</span>
-                <span className="value highlight">₹{activeRide.estimatedFare?.toFixed(0)}</span>
-              </div>
-            </div>
-
-            <div className="contact-section">
-              <h4>📞 Driver Contact</h4>
-              <div className="contact-buttons">
-                <button className="contact-btn call-btn">📞 Call Driver</button>
-                <button className="contact-btn message-btn">💬 Message</button>
-              </div>
+            <div className="action-row">
+              <button className="call-btn">📞 Call</button>
+              <button className="msg-btn">💬 Message</button>
             </div>
           </div>
+
+          {/* Trip Details */}
+          <div className="trip-card">
+            <div className="location-row">
+              <div className="dot green"></div>
+              <div>
+                <small>Pickup</small>
+                <p>{booking.pickupLocation?.address || "Pickup Location"}</p>
+              </div>
+            </div>
+            <div className="line-connector"></div>
+            <div className="location-row">
+              <div className="dot red"></div>
+              <div>
+                <small>Dropoff</small>
+                <p>{booking.dropLocation?.address || "Dropoff Location"}</p>
+              </div>
+            </div>
+
+            <hr />
+
+            <div className="fare-row">
+              <span>Total Fare</span>
+              <span className="fare-amount">₹{booking.fare}</span>
+            </div>
+          </div>
+
+          {/* Payment Section */}
+          {status === "COMPLETED" && (
+            <div className="payment-card">
+              <h3>Payment Due</h3>
+              <p>Please complete your payment of ₹{booking.fare}</p>
+              <button
+                className="pay-now-btn"
+                onClick={handlePayment}
+                disabled={paymentProcessing}
+              >
+                {paymentProcessing ? "Processing..." : "Pay Now (UPI)"}
+              </button>
+            </div>
+          )}
+
+          {status === "PAID" && (
+            <div className="payment-success-card">
+              <h3>✅ Payment Successful</h3>
+              <button className="home-btn" onClick={onCancel}>Book Another Ride</button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
+};
+
+// Helper Components & Functions
+const TimelineItem = ({ active, completed, icon, title, time }) => (
+  <div className={`timeline-item ${completed ? 'completed' : ''} ${active ? 'active' : ''}`}>
+    <div className="timeline-icon">{completed ? '✅' : icon}</div>
+    <div className="timeline-content">
+      <h4>{title}</h4>
+      <small>{time}</small>
+    </div>
+  </div>
+);
+
+const getStatusMessage = (status) => {
+  switch (status) {
+    case 'PENDING': return "Finding you a driver...";
+    case 'CONFIRMED': return "Driver is on the way!";
+    case 'IN_PROGRESS': return "Ride in progress...";
+    case 'COMPLETED': return "Ride Completed. Payment Pending.";
+    case 'PAID': return "Ride Closed.";
+    case 'CANCELLED': return "Ride Cancelled";
+    default: return "Status Unknown";
+  }
 };
 
 export default UserRideTracking;

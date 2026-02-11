@@ -119,6 +119,6 @@ public class Booking {
     public void setCabNumber(String cabNumber) { this.cabNumber = cabNumber; }
     
     public enum BookingStatus {
-        PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED
+        PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, PAID
     }
 } 

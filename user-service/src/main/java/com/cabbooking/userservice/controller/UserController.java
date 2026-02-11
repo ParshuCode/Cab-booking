@@ -25,12 +25,20 @@ public class UserController {
     private com.cabbooking.userservice.security.JwtTokenProvider tokenProvider;
     
     @PostMapping("/register")
-    public ResponseEntity<User> registerUser(@Valid @RequestBody UserRegistrationRequest request) {
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRegistrationRequest request, org.springframework.validation.BindingResult bindingResult) {
+        if (bindingResult.hasErrors()) {
+            List<String> errors = bindingResult.getAllErrors().stream()
+                .map(error -> error.getDefaultMessage())
+                .toList();
+            System.err.println("Validation Errors: " + errors);
+            return ResponseEntity.badRequest().body(java.util.Collections.singletonMap("message", String.join(", ", errors)));
+        }
         try {
             User user = userService.registerUser(request);
             return ResponseEntity.ok(user);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Registration Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(java.util.Collections.singletonMap("message", e.getMessage()));
         }
     }
     
