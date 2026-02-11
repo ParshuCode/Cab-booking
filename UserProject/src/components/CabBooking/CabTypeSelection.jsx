@@ -1,194 +1,122 @@
 import React, { useState, useEffect } from "react";
 import "./CabTypeSelection.css";
 
-/**
- * Cab Type Selection Component
- * Shows only available cab types
- * User selects cab type first, then only those cab types are shown from drivers
- * Displays estimated fare and vehicle details
- */
-const CabTypeSelection = ({ 
-  onCabTypeSelect, 
+const CAB_METADATA = {
+  MINI: { icon: "🚗", name: "Mini", description: "Compact & affordable" },
+  SEDAN: { icon: "🚙", name: "Sedan", description: "Comfortable sedan" },
+  SUV: { icon: "🚐", name: "SUV", description: "Spacious for groups" },
+  LUXURY: { icon: "🚘", name: "Luxury", description: "Premium experience" }
+};
+
+const CabTypeSelection = ({
+  onCabTypeSelect,
   tripDistance,
-  estimatedFare 
+  userLocation
 }) => {
   const [selectedCabType, setSelectedCabType] = useState(null);
+  const [estimates, setEstimates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const cabTypes = [
-    {
-      id: "economy",
-      name: "Economy",
-      icon: "🚗",
-      description: "Most affordable option",
-      capacity: "1-4 passengers",
-      basePrice: 50,
-      pricePerKm: 10,
-      color: "#4CAF50",
-    },
-    {
-      id: "comfort",
-      name: "Comfort",
-      icon: "🚙",
-      description: "For a comfortable ride",
-      capacity: "1-4 passengers",
-      basePrice: 75,
-      pricePerKm: 15,
-      color: "#2196F3",
-    },
-    {
-      id: "premium",
-      name: "Premium",
-      icon: "🚘",
-      description: "Premium comfort & features",
-      capacity: "1-4 passengers",
-      basePrice: 100,
-      pricePerKm: 20,
-      color: "#FF9800",
-    },
-    {
-      id: "suv",
-      name: "SUV",
-      icon: "🚐",
-      description: "Spacious for groups",
-      capacity: "1-6 passengers",
-      basePrice: 120,
-      pricePerKm: 25,
-      color: "#9C27B0",
-    },
-  ];
+  useEffect(() => {
+    if (userLocation && tripDistance) {
+      fetchEstimates();
+    }
+  }, [userLocation, tripDistance]);
 
-  const calculateFare = (cabType) => {
-    return cabType.basePrice + (tripDistance * cabType.pricePerKm);
+  const fetchEstimates = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Use the new endpoint we just added
+      const response = await fetch(
+        `http://localhost:8076/api/cabs/estimates?distance=${tripDistance}&lat=${userLocation.lat}&lng=${userLocation.lng}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setEstimates(data);
+      } else {
+        setError("Failed to load vehicle options");
+      }
+    } catch (err) {
+      console.error("Error fetching estimates:", err);
+      setError("Network error loading prices");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCabTypeSelect = (cabType) => {
-    setSelectedCabType(cabType.id);
-    onCabTypeSelect(cabType);
+  const handleSelect = (est) => {
+    // metadata info
+    const meta = CAB_METADATA[est.type] || { name: est.type, icon: "🚖", description: "Standard Ride" };
+
+    // Construct the object expected by parent
+    const selection = {
+      id: est.type,
+      name: meta.name,
+      icon: meta.icon,
+      estimatedFare: est.fare,
+      ...est // include all backend data
+    };
+
+    setSelectedCabType(est.type);
+    onCabTypeSelect(selection);
   };
+
+  if (loading) return <div className="cab-selection-loading">Calculating best fares...</div>;
+  if (error) return <div className="cab-selection-error">{error} <button onClick={fetchEstimates}>Retry</button></div>;
 
   return (
     <div className="cab-type-selection-container">
       <div className="selection-header">
         <h3>🚗 Select Vehicle Type</h3>
         <p className="selection-subtitle">
-          Available vehicles for your {tripDistance.toFixed(1)} km trip
+          Real-time pricing for {tripDistance.toFixed(1)} km
         </p>
       </div>
 
-      {/* Trip Summary */}
-      <div className="trip-summary-card">
-        <div className="summary-item">
-          <span className="summary-icon">📏</span>
-          <div>
-            <div className="summary-label">Distance</div>
-            <div className="summary-value">{tripDistance.toFixed(2)} km</div>
-          </div>
-        </div>
-        <div className="summary-divider"></div>
-        <div className="summary-item">
-          <span className="summary-icon">⏱️</span>
-          <div>
-            <div className="summary-label">Est. Time</div>
-            <div className="summary-value">{(tripDistance / 40 * 60).toFixed(0)} min</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Cab Types Grid */}
       <div className="cab-types-grid">
-        {cabTypes.map((cabType) => {
-          const fare = calculateFare(cabType);
-          const isSelected = selectedCabType === cabType.id;
+        {estimates.map((est) => {
+          const meta = CAB_METADATA[est.type] || { icon: "🚖", name: est.type, description: "Standard Ride" };
+          const isSelected = selectedCabType === est.type;
 
           return (
             <div
-              key={cabType.id}
+              key={est.type}
               className={`cab-type-card ${isSelected ? "selected" : ""}`}
-              onClick={() => handleCabTypeSelect(cabType)}
+              onClick={() => handleSelect(est)}
             >
               {isSelected && <div className="selected-badge">✓</div>}
 
-              {/* Icon */}
-              <div className="cab-icon" style={{ color: cabType.color }}>
-                {cabType.icon}
-              </div>
+              <div className="cab-icon">{meta.icon}</div>
+              <div className="cab-name">{meta.name}</div>
+              <div className="cab-description">{meta.description}</div>
 
-              {/* Type Name */}
-              <div className="cab-name">{cabType.name}</div>
-
-              {/* Description */}
-              <div className="cab-description">{cabType.description}</div>
-
-              {/* Capacity */}
               <div className="cab-capacity">
-                <span className="capacity-icon">👥</span>
-                {cabType.capacity}
+                <span className="capacity-icon">⏱️</span> {est.eta} away
               </div>
 
-              {/* Price */}
               <div className="cab-price">
-                <div className="price-label">Estimated Fare</div>
-                <div className="price-value">₹{fare.toFixed(0)}</div>
+                <div className="price-label">Est. Fare</div>
+                <div className="price-value">₹{est.fare}</div>
               </div>
 
-              {/* Details */}
-              <div className="cab-details">
-                <div className="detail-item">
-                  <span>Base: ₹{cabType.basePrice}</span>
-                </div>
-                <div className="detail-item">
-                  <span>₹{cabType.pricePerKm}/km</span>
-                </div>
-              </div>
-
-              {/* Select Button */}
-              <button 
+              <button
                 className={`select-btn ${isSelected ? "selected-btn" : ""}`}
-                onClick={() => handleCabTypeSelect(cabType)}
+                onClick={(e) => { e.stopPropagation(); handleSelect(est); }}
               >
-                {isSelected ? "✓ Selected" : "Select"}
+                {isSelected ? "Selected" : "Select"}
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Fare Breakdown (if selected) */}
-      {selectedCabType && (
-        <div className="fare-breakdown-card">
-          <h4>💰 Fare Breakdown</h4>
-          {cabTypes.map((cabType) => {
-            if (cabType.id === selectedCabType) {
-              const fare = calculateFare(cabType);
-              return (
-                <div key={cabType.id} className="breakdown-list">
-                  <div className="breakdown-item">
-                    <span>Base Fare</span>
-                    <span>₹{cabType.basePrice}</span>
-                  </div>
-                  <div className="breakdown-item">
-                    <span>Distance ({tripDistance.toFixed(2)} km)</span>
-                    <span>₹{(tripDistance * cabType.pricePerKm).toFixed(0)}</span>
-                  </div>
-                  <div className="breakdown-item total">
-                    <span>Total Estimated</span>
-                    <span>₹{fare.toFixed(0)}</span>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })}
+      {estimates.length === 0 && (
+        <div className="no-cabs-message">
+          No cabs currently available in this area.
         </div>
       )}
-
-      {/* Info Message */}
-      <div className="info-message">
-        <span className="info-icon">ℹ️</span>
-        <span>
-          Actual fare may vary based on traffic and route taken
-        </span>
-      </div>
     </div>
   );
 };

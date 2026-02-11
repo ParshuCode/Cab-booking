@@ -146,6 +146,14 @@ public class CabController {
         return ResponseEntity.ok().build();
     }
     
+    @GetMapping("/estimates")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getFareEstimates(
+            @RequestParam Double distance, 
+            @RequestParam Double lat, 
+            @RequestParam Double lng) {
+        return ResponseEntity.ok(cabService.getFareEstimates(distance, lat, lng));
+    }
+    
     @GetMapping("/login")
     public ResponseEntity<Cab> loginCab(@RequestParam String cabNumber, @RequestParam String driverPhone) {
         Optional<Cab> cab = cabRepository.findByCabNumberAndDriverPhone(cabNumber, driverPhone);

@@ -124,5 +124,42 @@ public class CabService {
         messagingTemplate.convertAndSend("/topic/cab-requests", rideRequest);
         // Optionally log or restrict by geolocation
     }
+
+    public java.util.List<java.util.Map<String, Object>> getFareEstimates(Double distance, Double lat, Double lng) {
+        List<Cab> available = findAvailableCabsNear(lat, lng, 10.0); // 10km radius
+        
+        // Group by type
+        java.util.Map<Cab.CabType, List<Cab>> byType = available.stream()
+            .collect(Collectors.groupingBy(Cab::getCabType));
+            
+        java.util.List<java.util.Map<String, Object>> estimates = new java.util.ArrayList<>();
+        
+        for (Cab.CabType type : Cab.CabType.values()) {
+            List<Cab> cabs = byType.get(type);
+            if (cabs == null || cabs.isEmpty()) continue;
+            
+            // Logic: Take average of baseFare + (rate * distance)
+            double avgFare = cabs.stream()
+                .mapToDouble(c -> c.getBaseFare() + (c.getPerKmRate() * distance))
+                .average().orElse(0.0);
+                
+            // Find closest cab for ETA (assuming 40km/h avg speed -> 1.5 min per km)
+            double minDist = cabs.stream()
+                .mapToDouble(c -> haversine(lat, lng, c.getCurrentLocation().getLatitude(), c.getCurrentLocation().getLongitude()))
+                .min().orElse(10.0);
+                
+            int etaMins = (int) Math.ceil(minDist * 2.5); // 2.5 mins per km roughly in city
+            
+            java.util.Map<String, Object> est = new java.util.HashMap<>();
+            est.put("type", type.name());
+            est.put("fare", Math.round(avgFare));
+            est.put("eta", etaMins + " min");
+            est.put("availableCount", cabs.size());
+            
+            estimates.add(est);
+        }
+        
+        return estimates;
+    }
     
 } 

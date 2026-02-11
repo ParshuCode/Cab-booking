@@ -30,7 +30,7 @@ function App() {
   const [pickupLocation, setPickupLocation] = useState(null);
   const [dropLocation, setDropLocation] = useState(null);
   const [driverData, setDriverData] = useState(null);
-  
+
 
   useEffect(() => {
     // Check if role is already selected
@@ -116,23 +116,16 @@ function App() {
       // case 'book':
       //   return <CabBooking user={user} />;
       case 'book':
-        return <BookCabPage
-            user={user}
-            pickupLocation={pickupLocation}
-            dropLocation={dropLocation}
-            setPickupLocation={setPickupLocation}
-            setDropLocation={setDropLocation}
-            setCurrentPage={setCurrentPage}
-          />;
+        return <BookingFlow user={user} />;
       case 'profile':
         return <UserProfile user={user} />;
-        
+
       case 'user-ride':
         return <UserRidePage
-            user={user}
-            pickupLocation={pickupLocation}
-            dropLocation={dropLocation}
-          />;
+          user={user}
+          pickupLocation={pickupLocation}
+          dropLocation={dropLocation}
+        />;
       case 'bookings':
         return <MyBookings user={user} />;
       case 'payment':
@@ -144,7 +137,7 @@ function App() {
       case 'cab-dashboard':
         return <DriverDashboardSimple onLogout={handleCabLogout} />;
       case 'booking-flow':
-        return <BookingFlow />;
+        return <BookingFlow user={user} />;
       case 'ride-tracking':
         return <UserRideTracking onCancel={() => setCurrentPage('home')} />;
       case 'driver-dashboard':
@@ -165,14 +158,14 @@ function App() {
 
   return (
     <div className="App">
-      <Navigation 
+      <Navigation
         userRole={userRole}
-        user={user} 
+        user={user}
         cab={cab}
-        onLogout={handleLogout} 
+        onLogout={handleLogout}
         onCabLogout={handleCabLogout}
-        currentPage={currentPage} 
-        onPageChange={handlePageChange} 
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
       />
       <main className="main-content">
         {renderCurrentPage()}
