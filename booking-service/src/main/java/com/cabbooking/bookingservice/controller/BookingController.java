@@ -156,4 +156,46 @@ public class BookingController {
         }
         return ResponseEntity.noContent().build();
     }
+    
+    // PHASE 2: Driver can only mark ride as ENDED (not completed)
+    @PutMapping("/{id}/end-ride")
+    public ResponseEntity<Booking> endRide(
+            @PathVariable Long id,
+            @RequestParam Long driverId) {
+        try {
+            Booking updated = bookingService.endRide(id, driverId);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(null);
+        }
+    }
+    
+    // PHASE 2: Driver starts the ride
+    @PutMapping("/{id}/start-ride")
+    public ResponseEntity<Booking> startRide(
+            @PathVariable Long id,
+            @RequestParam Long driverId) {
+        try {
+            Booking updated = bookingService.startRide(id, driverId);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(null);
+        }
+    }
+    
+    // PHASE 2: User initiates payment (sets status to PAYMENT_PENDING)
+    @PutMapping("/{id}/initiate-payment")
+    public ResponseEntity<Booking> initiatePayment(
+            @PathVariable Long id,
+            @RequestParam Long userId) {
+        try {
+            Booking updated = bookingService.initiatePayment(id, userId);
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(null);
+        }
+    }
 } 

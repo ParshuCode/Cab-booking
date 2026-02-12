@@ -150,7 +150,7 @@ public class BookingService {
         }
 
         booking.setCabId(cabId);
-        booking.setStatus(Booking.BookingStatus.CONFIRMED);
+        booking.setStatus(BookingStatus.DRIVER_ACCEPTED);
         
         Booking updatedBooking = bookingRepository.save(booking);
         
@@ -269,7 +269,7 @@ public class BookingService {
         }
 
         booking.setCabId(cabId);
-        booking.setStatus(Booking.BookingStatus.CONFIRMED);
+        booking.setStatus(BookingStatus.DRIVER_ACCEPTED);
         Booking saved = bookingRepository.save(booking);
         System.out.println("**********Booking saved********");
 
@@ -311,6 +311,86 @@ public class BookingService {
     }
     
     public void cancelBooking(Long id) {
-        updateBookingStatus(id, Booking.BookingStatus.CANCELLED);
+        updateBookingStatus(id, BookingStatus.CANCELLED);
+    }
+    
+    // PHASE 2: Driver starts the ride
+    public Booking startRide(Long bookingId, Long driverId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        
+        // Validate driver owns this booking
+        if (!booking.getCabId().equals(driverId)) {
+            throw new RuntimeException("Driver not authorized for this booking");
+        }
+        
+        // Validate current status
+        if (booking.getStatus() != BookingStatus.DRIVER_ACCEPTED) {
+            throw new RuntimeException("Ride can only be started from DRIVER_ACCEPTED status");
+        }
+        
+        booking.setStatus(BookingStatus.IN_PROGRESS);
+        booking.setPickupTime(LocalDateTime.now());
+        
+        Booking updated = bookingRepository.save(booking);
+        
+        // Notify user via WebSocket
+        messagingTemplate.convertAndSend(
+            "/topic/user/" + booking.getUserId() + "/ride-status",
+            "Ride started"
+        );
+        
+        return updated;
+    }
+    
+    // PHASE 2: Driver ends the ride (does NOT complete it)
+    public Booking endRide(Long bookingId, Long driverId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        
+        // Validate driver owns this booking
+        if (!booking.getCabId().equals(driverId)) {
+            throw new RuntimeException("Driver not authorized for this booking");
+        }
+        
+        // Validate current status
+        if (booking.getStatus() != BookingStatus.IN_PROGRESS) {
+            throw new RuntimeException("Ride can only be ended from IN_PROGRESS status");
+        }
+        
+        booking.setStatus(BookingStatus.RIDE_ENDED);
+        booking.setDropTime(LocalDateTime.now());
+        
+        Booking updated = bookingRepository.save(booking);
+        
+        // Notify user to complete payment
+        messagingTemplate.convertAndSend(
+            "/topic/user/" + booking.getUserId() + "/ride-ended",
+            updated
+        );
+        
+        System.out.println("Ride ended. User can now pay. Booking ID: " + bookingId);
+        
+        return updated;
+    }
+    
+    // PHASE 2: User initiates payment
+    public Booking initiatePayment(Long bookingId, Long userId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        
+        // Validate user owns this booking
+        if (!booking.getUserId().equals(userId)) {
+            throw new RuntimeException("User not authorized for this booking");
+        }
+        
+        // Validate current status
+        if (booking.getStatus() != BookingStatus.RIDE_ENDED) {
+            throw new RuntimeException("Payment can only be initiated after ride ends");
+        }
+        
+        booking.setStatus(BookingStatus.PAYMENT_PENDING);
+        
+        return bookingRepository.save(booking);
     }
 } 

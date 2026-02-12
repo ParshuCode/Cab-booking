@@ -121,9 +121,4 @@ public class Booking {
 
     public String getCabType() { return cabType; }
     public void setCabType(String cabType) { this.cabType = cabType; }
-    
-    
-    public enum BookingStatus {
-        PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED
-    }
 } 
