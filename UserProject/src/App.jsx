@@ -132,6 +132,8 @@ function App() {
           user={user}
           pickupLocation={pickupLocation}
           dropLocation={dropLocation}
+          setCurrentPage={setCurrentPage}
+          setSelectedBooking={setSelectedBooking}
         />;
       case 'bookings':
         return <MyBookings user={user} />;
@@ -144,9 +146,19 @@ function App() {
       case 'cab-dashboard':
         return <DriverDashboardSimple cab={cab} onLogout={handleCabLogout} />;
       case 'booking-flow':
-        return <BookingFlow user={user} />;
+        return <BookingFlow
+          user={user}
+          setCurrentPage={setCurrentPage}
+          setSelectedBooking={setSelectedBooking}
+        />;
       case 'ride-tracking':
-        return <UserRideTracking onCancel={() => setCurrentPage('home')} />;
+        return <UserRideTracking
+          onCancel={() => setCurrentPage('home')}
+          onRideCompleted={(booking) => {
+            setSelectedBooking(booking);
+            setCurrentPage('payment');
+          }}
+        />;
       case 'driver-dashboard':
         return <DriverDashboardSimple cab={cab} onLogout={handleCabLogout} />;
       default:

@@ -181,6 +181,11 @@ export const useRideWebSocket = (userId, driverId = null) => {
     console.log("💬 Message sent to user:", message);
   };
 
+  // Clear current ride request (to prevent reappearing in UI)
+  const clearRideRequest = () => {
+    setRideRequest(null);
+  };
+
   return {
     connected,
     error,
@@ -191,5 +196,6 @@ export const useRideWebSocket = (userId, driverId = null) => {
     sendRideRequest,
     sendDriverConfirmation,
     sendMessageToUser,
+    clearRideRequest,
   };
 };

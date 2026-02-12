@@ -20,14 +20,15 @@ const Payment = ({ booking, onPaymentComplete }) => {
   const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 
   useEffect(() => {
-    if (booking?.estimatedFare) {
-      setPaymentData(prev => ({ ...prev, amount: booking.estimatedFare }));
+    const amount = booking?.fare || booking?.estimatedFare;
+    if (amount) {
+      setPaymentData(prev => ({ ...prev, amount: amount }));
     }
   }, [booking]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
+
     if (name === 'cardNumber') {
       // Format card number with spaces
       const formatted = value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
@@ -66,78 +67,91 @@ const Payment = ({ booking, onPaymentComplete }) => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+  const RAZORPAY_KEY_ID = 'rzp_test_RT2cv0jcxdEeZN';
 
+  const handleRazorpayPayment = async () => {
     setLoading(true);
     setError('');
-    setSuccess('');
 
     try {
-      const paymentRequest = {
-        userId: booking.userId,
-        bookingId: booking.id,
-        amount: paymentData.amount,
-        paymentMethod: paymentMethod,
-        cardNumber: paymentData.cardNumber.replace(/\s/g, ''),
-        cardHolderName: paymentData.cardHolderName,
-        expiryDate: `${paymentData.expiryMonth}/${paymentData.expiryYear}`,
-        cvv: paymentData.cvv
-      };
-
-      const response = await fetch('/api/payments/process', {
+      // 1. Create order in backend
+      const orderResponse = await fetch('http://localhost:8082/api/payments/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentRequest)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rideId: booking.id,
+          userId: booking.userId,
+          amount: booking.fare || booking.estimatedFare
+        })
       });
 
-      if (response.ok) {
-        const payment = await response.json();
-        setSuccess(`Payment successful! Transaction ID: ${payment.id}`);
-        
-        // Update booking status to confirmed
-        try {
-          await fetch(`/api/bookings/${booking.id}/status?status=CONFIRMED`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
-        } catch (err) {
-          console.error('Failed to update booking status:', err);
-        }
-
-        if (onPaymentComplete) {
-          onPaymentComplete(payment);
-        }
-
-        // Reset form
-        setTimeout(() => {
-          setPaymentData({
-            cardNumber: '',
-            cardHolderName: '',
-            expiryMonth: '',
-            expiryYear: '',
-            cvv: '',
-            amount: 0
-          });
-          setSuccess('');
-        }, 3000);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Payment failed. Please try again.');
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create payment order');
       }
+
+      const orderData = await orderResponse.json();
+      console.log("Order Data:", orderData);
+
+      // 2. Open Razorpay Checkout
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "Cab Booking Service",
+        description: `Payment for Ride #${booking.id}`,
+        order_id: orderData.id,
+        handler: async function (response) {
+          // 3. Verify payment in backend
+          try {
+            const verifyResponse = await fetch('http://localhost:8082/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            if (verifyResponse.ok) {
+              setSuccess('Payment successful! Your ride is now fully paid.');
+              if (onPaymentComplete) {
+                onPaymentComplete(response);
+              }
+              // Clear local storage ride data
+              localStorage.removeItem('currentUserRide');
+              localStorage.removeItem('driverAcceptedRide');
+            } else {
+              setError('Payment verification failed. Please contact support.');
+            }
+          } catch (err) {
+            setError('Error verifying payment.');
+          }
+        },
+        prefill: {
+          name: "User " + booking.userId,
+          email: "user@example.com",
+          contact: "9999999999"
+        },
+        theme: {
+          color: "#000000"
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
     } catch (err) {
-      setError('Payment processing error. Please try again.');
+      console.error("Payment Error:", err);
+      setError(err.message || 'Error initiating payment');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    handleRazorpayPayment();
   };
 
   if (!booking) {
@@ -161,11 +175,11 @@ const Payment = ({ booking, onPaymentComplete }) => {
             <div className="summary-details">
               <div className="summary-row">
                 <span>From:</span>
-                <span>{booking.pickupLocation}</span>
+                <span>{typeof booking.pickupLocation === 'object' ? booking.pickupLocation.address : booking.pickupLocation}</span>
               </div>
               <div className="summary-row">
                 <span>To:</span>
-                <span>{booking.dropLocation}</span>
+                <span>{typeof booking.dropLocation === 'object' ? booking.dropLocation.address : booking.dropLocation}</span>
               </div>
               <div className="summary-row">
                 <span>Cab Type:</span>
@@ -212,7 +226,7 @@ const Payment = ({ booking, onPaymentComplete }) => {
           {paymentMethod === 'CARD' && (
             <div className="card-details">
               <h3>Card Details</h3>
-              
+
               <div className="form-group">
                 <label htmlFor="cardNumber">Card Number</label>
                 <input

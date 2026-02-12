@@ -4,12 +4,40 @@ import SockJS from "sockjs-client";
 import MapWithCabs from "./MapWithCabs";
 import RideRequestForm from "./RideRequestForm";
 
-export default function UserRidePage({ user, pickupLocation, dropLocation }) {
+export default function UserRidePage({ user, pickupLocation, dropLocation, setCurrentPage, setSelectedBooking }) {
   const [assignedCab, setAssignedCab] = useState(null);
   const [driverLoc, setDriverLoc] = useState(null);
   const [bookingStatus, setBookingStatus] = useState("awaiting"); // awaiting, assigned, completed
   const [fare, setFare] = useState(null);
   const pollIntervalRef = useRef(null);
+  const statusPollRef = useRef(null);
+
+  // Status Polling to detect ride completion by driver
+  useEffect(() => {
+    if (assignedCab?.bookingId) {
+      statusPollRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(`http://localhost:8077/api/bookings/${assignedCab.bookingId}`);
+          if (res.ok) {
+            const booking = await res.json();
+            if (booking.status === 'COMPLETED') {
+              console.log("🏁 Ride completed detected in UserRidePage! Moving to payment.");
+              clearInterval(statusPollRef.current);
+              if (setSelectedBooking && setCurrentPage) {
+                setSelectedBooking(booking);
+                setCurrentPage('payment');
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Status polling error in UserRidePage:", err);
+        }
+      }, 3000);
+    }
+    return () => {
+      if (statusPollRef.current) clearInterval(statusPollRef.current);
+    };
+  }, [assignedCab, setCurrentPage, setSelectedBooking]);
 
   // 1. WebSocket: listen for assignment
   useEffect(() => {
@@ -189,19 +217,9 @@ export default function UserRidePage({ user, pickupLocation, dropLocation }) {
             Fare: ₹{fare !== null ? fare.toFixed(2) : "Loading..."}
           </span>
           <br /><br />
-          <button
-            style={{
-              fontSize: 18,
-              background: "#0b72e7",
-              color: "#fff",
-              border: "none",
-              padding: "12px 26px",
-              borderRadius: 6
-            }}
-            onClick={handlePayNow}
-          >
-            Complete Ride & Pay
-          </button>
+          <div style={{ color: "green", marginTop: "10px" }}>
+            The payment window will appear automatically once the driver completes the ride.
+          </div>
         </div>
       )}
 

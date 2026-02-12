@@ -6,42 +6,74 @@ import './UserRideTracking.css';
  * Shows active ride status and driver details
  * Updates in real-time when driver accepts
  */
-const UserRideTracking = ({ onCancel }) => {
+const UserRideTracking = ({ onCancel, onRideCompleted }) => {
   const [activeRide, setActiveRide] = useState(null);
   const [driverAccepted, setDriverAccepted] = useState(false);
   const [driverDetails, setDriverDetails] = useState(null);
   const [waitingTime, setWaitingTime] = useState(0);
   const [pollingInterval, setPollingInterval] = useState(null);
 
-  // Initialize active ride from localStorage
+  // Initialize active ride and poll for status
   useEffect(() => {
-    const savedRide = localStorage.getItem('currentUserRide');
+    // Check multiple potential keys to ensure we catch the ride regardless of which component started it
+    const savedRide = localStorage.getItem('currentUserRide') || localStorage.getItem('activeRide');
+    let rideData = null;
     if (savedRide) {
-      setActiveRide(JSON.parse(savedRide));
+      rideData = JSON.parse(savedRide);
+      setActiveRide(rideData);
     }
 
-    // Poll for driver acceptance every 2 seconds
-    const interval = setInterval(() => {
-      const savedRide = localStorage.getItem('currentUserRide');
-      const driverInfo = localStorage.getItem('driverAcceptedRide');
-      
-      if (savedRide && driverInfo) {
-        setActiveRide(JSON.parse(savedRide));
-        setDriverAccepted(true);
-        setDriverDetails(JSON.parse(driverInfo));
-        clearInterval(interval); // Stop polling once driver accepts
+    const interval = setInterval(async () => {
+      if (!rideData && !activeRide) return;
+      const currentRideId = rideData?.id || activeRide?.id;
+      if (!currentRideId) return;
+
+      try {
+        const response = await fetch(`http://localhost:8077/api/bookings/${currentRideId}`);
+        if (response.ok) {
+          const booking = await response.json();
+
+          if (booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS') {
+            setDriverAccepted(true);
+            // Enrich with driver details if available in backend
+            setDriverDetails({
+              name: booking.driverName || 'Driver',
+              cabNumber: booking.cabNumber || 'Unknown',
+              rating: 4.8,
+              totalRides: 120
+            });
+          }
+
+          if (booking.status === 'COMPLETED') {
+            console.log("🏁 Ride completed! Moving to payment.");
+            clearInterval(interval);
+
+            // Clear all local storage keys to prevent reappearing
+            localStorage.removeItem('currentUserRide');
+            localStorage.removeItem('activeRide');
+            localStorage.removeItem('driverAcceptedRide');
+            localStorage.removeItem('currentRideId');
+
+            if (onRideCompleted) {
+              onRideCompleted(booking);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
       }
 
-      // Update waiting time
       setWaitingTime(prev => prev + 1);
-    }, 2000);
+    }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [onRideCompleted]);
 
   const handleCancelRide = () => {
     localStorage.removeItem('currentUserRide');
+    localStorage.removeItem('activeRide');
     localStorage.removeItem('driverAcceptedRide');
+    localStorage.removeItem('currentRideId');
     if (onCancel) onCancel();
   };
 
@@ -80,11 +112,11 @@ const UserRideTracking = ({ onCancel }) => {
             <h4>📍 Your Booking Details</h4>
             <div className="detail-row">
               <span className="label">Pickup:</span>
-              <span className="value">{activeRide.pickupLocation}</span>
+              <span className="value">{typeof activeRide.pickupLocation === 'object' ? activeRide.pickupLocation.address : activeRide.pickupLocation}</span>
             </div>
             <div className="detail-row">
               <span className="label">Dropoff:</span>
-              <span className="value">{activeRide.dropoffLocation}</span>
+              <span className="value">{typeof activeRide.dropoffLocation === 'object' ? activeRide.dropoffLocation.address : activeRide.dropoffLocation}</span>
             </div>
             <div className="detail-row">
               <span className="label">Distance:</span>
@@ -152,7 +184,7 @@ const UserRideTracking = ({ onCancel }) => {
               <h4>🛣️ Your Trip</h4>
               <div className="detail-row">
                 <span className="label">Pickup:</span>
-                <span className="value">{activeRide.pickupLocation}</span>
+                <span className="value">{typeof activeRide.pickupLocation === 'object' ? activeRide.pickupLocation.address : activeRide.pickupLocation}</span>
               </div>
               <div className="detail-row">
                 <span className="label">Dropoff:</span>

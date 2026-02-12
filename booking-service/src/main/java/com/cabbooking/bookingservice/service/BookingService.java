@@ -154,6 +154,9 @@ public class BookingService {
         
         Booking updatedBooking = bookingRepository.save(booking);
         
+        // Stop the dispatch loop as a driver has accepted
+        rideDispatchService.processDriverAcceptance(updatedBooking.getId(), cabId);
+        
         // Notify cab-service about assignment
         RideRequestDTO rideReq = new RideRequestDTO(
             updatedBooking.getId(),
@@ -212,6 +215,10 @@ public class BookingService {
             booking.setPickupTime(LocalDateTime.now());
         } else if (status == Booking.BookingStatus.COMPLETED) {
             booking.setDropTime(LocalDateTime.now());
+            // stop the dispatch loop
+            rideDispatchService.processDriverAcceptance(id, booking.getCabId());
+        } else if (status == Booking.BookingStatus.CANCELLED) {
+            rideDispatchService.processDriverAcceptance(id, null);
         }
         
         return bookingRepository.save(booking);
@@ -271,6 +278,10 @@ public class BookingService {
         booking.setCabId(cabId);
         booking.setStatus(Booking.BookingStatus.CONFIRMED);
         Booking saved = bookingRepository.save(booking);
+        
+        // Stop the dispatch loop
+        rideDispatchService.processDriverAcceptance(saved.getId(), cabId);
+        
         System.out.println("**********Booking saved********");
 
         // ------------ Fetch real cab/driver info ------------ //

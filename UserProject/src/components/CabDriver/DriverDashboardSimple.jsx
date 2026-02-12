@@ -16,7 +16,7 @@ const DriverDashboardSimple = ({ cab, onLogout }) => {
   console.log("🎨 DriverDashboard Render. Requests:", incomingRequests.length, "Accepted:", acceptedRide ? "Yes" : "No");
 
   // WebSocket Hook
-  const { rideRequest, sendDriverConfirmation } = useRideWebSocket(null, cab?.id);
+  const { rideRequest, sendDriverConfirmation, sendMessageToUser, clearRideRequest } = useRideWebSocket(null, cab?.id);
 
   // Mock rides for history
   const mockRideHistory = [
@@ -169,6 +169,9 @@ const DriverDashboardSimple = ({ cab, onLogout }) => {
     setIncomingRequests([]);
     setDriverStatus('busy');
 
+    // Clear the WebSocket request state so it doesn't re-trigger
+    if (clearRideRequest) clearRideRequest();
+
     // Save driver acceptance so user can see it (if using polling/localstorage sync)
     // But now we use WebSocket for real time!
 
@@ -182,29 +185,61 @@ const DriverDashboardSimple = ({ cab, onLogout }) => {
     setIncomingRequests(prev => prev.filter(req => req.id !== requestId));
   };
 
-  const handleCompleteRide = () => {
+  const handleCompleteRide = async () => {
     if (acceptedRide) {
-      const ride = {
-        ...acceptedRide,
-        date: new Date().toLocaleString(),
-        rating: 5
-      };
-      const updatedHistory = [ride, ...rideHistory];
-      const updatedEarnings = earnings + acceptedRide.fare;
-      const updatedRides = completedRides + 1;
+      try {
+        // 1. Update status in backend
+        const response = await fetch(`http://localhost:8077/api/bookings/${acceptedRide.id}/status?status=COMPLETED`, {
+          method: 'PUT'
+        });
 
-      // Save to localStorage
-      setRideHistory(updatedHistory);
-      setEarnings(updatedEarnings);
-      setCompletedRides(updatedRides);
+        if (!response.ok) {
+          throw new Error('Failed to update ride status in backend');
+        }
 
-      localStorage.setItem('driverRideHistory', JSON.stringify(updatedHistory));
-      localStorage.setItem('driverEarnings', String(updatedEarnings));
-      localStorage.setItem('driverCompletedRides', String(updatedRides));
-      localStorage.setItem('driverRating', String(rating));
+        // 2. Notify user via WebSocket message (optional but good for real-time)
+        const recipientId = acceptedRide.userId
+          ? String(acceptedRide.userId).replace('User ', '')
+          : null;
+
+        if (recipientId && sendMessageToUser) {
+          sendMessageToUser(recipientId, "Your ride has been completed. Please proceed to payment.");
+        }
+
+        const ride = {
+          ...acceptedRide,
+          date: new Date().toLocaleString(),
+          rating: 5
+        };
+        const updatedHistory = [ride, ...rideHistory];
+        const updatedEarnings = earnings + acceptedRide.fare;
+        const updatedRides = completedRides + 1;
+
+        // Save to localStorage
+        setRideHistory(updatedHistory);
+        setEarnings(updatedEarnings);
+        setCompletedRides(updatedRides);
+
+        localStorage.setItem('driverRideHistory', JSON.stringify(updatedHistory));
+        localStorage.setItem('driverEarnings', String(updatedEarnings));
+        localStorage.setItem('driverCompletedRides', String(updatedRides));
+        localStorage.setItem('driverRating', String(rating));
+
+        localStorage.removeItem('activeRide');
+        localStorage.removeItem('acceptedRide');
+        localStorage.removeItem('currentRideId');
+        localStorage.removeItem('currentUserRide');
+
+        // Clear WebSocket request state
+        if (clearRideRequest) clearRideRequest();
+
+        setAcceptedRide(null);
+        setDriverStatus('online');
+      } catch (err) {
+        console.error("Error completing ride:", err);
+        alert("Failed to complete ride: " + err.message);
+      }
     }
-    setAcceptedRide(null);
-    setDriverStatus('online');
   };
 
   const toggleStatus = () => {

@@ -14,7 +14,7 @@ import CabTypeSelection from "./CabTypeSelection";
  * 5. System shows filtered drivers (only selected cab type)
  * 6. User confirms driver booking
  */
-const BookingFlow = ({ user, userLocation = { lat: 40.7128, lng: -74.006 }, userName = "User" }) => {
+const BookingFlow = ({ user, userLocation = { lat: 40.7128, lng: -74.006 }, userName = "User", setCurrentPage, setSelectedBooking }) => {
   const [bookingStep, setBookingStep] = useState(1); // 1: Destination, 2: CabType, 3: DriverSelection, 4: Confirmation
   const [selectedLocations, setSelectedLocations] = useState(null);
   const [selectedCabType, setSelectedCabType] = useState(null);
@@ -46,6 +46,44 @@ const BookingFlow = ({ user, userLocation = { lat: 40.7128, lng: -74.006 }, user
       setBookingStep(6); // Move to Driver Found / Tracking step
     }
   }, [rideConfirmation]);
+
+  // Status Polling for Step 6 (Tracking)
+  useEffect(() => {
+    let interval;
+    if (bookingStep === 6) {
+      interval = setInterval(async () => {
+        const savedRide = localStorage.getItem('currentUserRide');
+        if (!savedRide) return;
+        const rideData = JSON.parse(savedRide);
+        const rideId = rideData.id;
+
+        try {
+          const response = await fetch(`http://localhost:8077/api/bookings/${rideId}`);
+          if (response.ok) {
+            const booking = await response.json();
+            if (booking.status === 'COMPLETED') {
+              console.log("🏁 Ride completed detected in BookingFlow! Moving to payment.");
+              clearInterval(interval);
+
+              // Clear localStorage to prevent ride reappearing
+              localStorage.removeItem('currentUserRide');
+              localStorage.removeItem('activeRide');
+              localStorage.removeItem('driverAcceptedRide');
+              localStorage.removeItem('currentRideId');
+
+              if (setSelectedBooking && setCurrentPage) {
+                setSelectedBooking(booking);
+                setCurrentPage('payment');
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Polling error in BookingFlow:", err);
+        }
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [bookingStep, setCurrentPage, setSelectedBooking]);
 
   // Mock drivers data
   const allDrivers = [
@@ -252,9 +290,8 @@ const BookingFlow = ({ user, userLocation = { lat: 40.7128, lng: -74.006 }, user
       const booking = await response.json();
       console.log("✅ Backend Booking Created:", booking);
 
-      // Send via WebSocket (if available) - ACTUALLY Backend does dispatch now!
-      // So we just wait for confirmation.
-      // But UI needs to know we are waiting.
+      // Save the REAL booking object (with database ID) to localStorage
+      localStorage.setItem('currentUserRide', JSON.stringify(booking));
 
       alert("✅ Booking Confirmed! Waiting for driver to accept...");
       setBookingStep(5); // Add new step for tracking
