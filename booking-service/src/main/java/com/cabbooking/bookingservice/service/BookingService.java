@@ -80,6 +80,9 @@ public class BookingService {
         return location;
     }
     
+    @Autowired
+    private RideDispatchService rideDispatchService;
+
     public Booking createBooking(BookingRequest request) {
         // Geocode addresses to get coordinates
 //        Location pickupLocation = geocodingService.geocodeAddress(request.getPickupLocation(), LocationType.PICKUP);
@@ -87,6 +90,14 @@ public class BookingService {
         
         Location pickupLocation = parseLocationString(request.getPickupLocation(), LocationType.PICKUP);
         Location dropLocation = parseLocationString(request.getDropLocation(), LocationType.DROP);
+        
+        // Set human-readable addresses if provided
+        if (request.getPickupAddress() != null) {
+            pickupLocation.setAddress(request.getPickupAddress());
+        }
+        if (request.getDropAddress() != null) {
+            dropLocation.setAddress(request.getDropAddress());
+        }
         
         // Calculate distance automatically using coordinates
         double distance = distanceCalculationService.calculateDistance(pickupLocation, dropLocation);
@@ -111,9 +122,8 @@ public class BookingService {
         
         Booking savedBooking = bookingRepository.save(booking);
 
-        // NOTE: NO AUTO-NOTIFY HERE!
-        // User will select driver from list, then call acceptRideByDriver() endpoint
-        // This allows user to pick specific driver instead of broadcast to all
+        // Start the sequential dispatch process
+        rideDispatchService.startDispatch(savedBooking);
 
         return savedBooking;
     }
@@ -123,6 +133,22 @@ public class BookingService {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
         
+        Cab driverCab = null;
+        // Fetch driver details from cab-service
+        try {
+            String cabUrl = cabServiceUrl + "/api/cabs/" + cabId;
+            driverCab = restTemplate.getForObject(cabUrl, Cab.class);
+            
+            if (driverCab != null) {
+                booking.setCabNumber(driverCab.getCabNumber());
+                booking.setDriverName(driverCab.getDriverName());
+                booking.setDriverPhone(driverCab.getDriverPhone());
+                booking.setCabType(driverCab.getCabType());
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching cab details for booking update: " + e.getMessage());
+        }
+
         booking.setCabId(cabId);
         booking.setStatus(Booking.BookingStatus.CONFIRMED);
         
@@ -146,6 +172,32 @@ public class BookingService {
         } catch (Exception ex) {
             System.err.println("Failed to notify cab-service about acceptance: " + ex.getMessage());
         }
+        
+        // Send WebSocket confirmation to User
+        AssignedCabInfo assigned = new AssignedCabInfo();
+        assigned.setBookingId(updatedBooking.getId());
+        assigned.setUserId(updatedBooking.getUserId());
+        assigned.setCabId(cabId);
+        assigned.setPickupLat(updatedBooking.getPickupLocation().getLatitude());
+        assigned.setPickupLng(updatedBooking.getPickupLocation().getLongitude());
+
+        if (driverCab != null) {
+            assigned.setDriverName(driverCab.getDriverName());
+            assigned.setCabNumber(driverCab.getCabNumber());
+            assigned.setModel(driverCab.getModel());
+            assigned.setCabType(driverCab.getCabType());
+        } else {
+            // Fallback if cab service failed
+            assigned.setDriverName(updatedBooking.getDriverName());
+            assigned.setCabNumber(updatedBooking.getCabNumber());
+        }
+
+        System.out.println("Sending User Confirmation: " + assigned);
+        
+        messagingTemplate.convertAndSend(
+            "/topic/user/" + updatedBooking.getUserId() + "/confirmation",
+            assigned
+        );
         
         return updatedBooking;
     }
@@ -247,7 +299,7 @@ public class BookingService {
         
         // send WebSocket to user as before:
         messagingTemplate.convertAndSend(
-            "/queue/user-" + saved.getUserId(),
+            "/topic/user/" + saved.getUserId() + "/confirmation",
             assigned
         );
         System.out.println("Notify user: /queue/user-" + saved.getUserId() + " " + assigned);

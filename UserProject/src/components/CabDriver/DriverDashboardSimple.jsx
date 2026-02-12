@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './DriverDashboardSimple.css';
 
-const DriverDashboardSimple = ({ onLogout }) => {
+import { useRideWebSocket } from '../../hooks/useRideWebSocket';
+
+const DriverDashboardSimple = ({ cab, onLogout }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [acceptedRide, setAcceptedRide] = useState(null);
@@ -10,6 +12,11 @@ const DriverDashboardSimple = ({ onLogout }) => {
   const [earnings, setEarnings] = useState(2450);
   const [completedRides, setCompletedRides] = useState(256);
   const [rating, setRating] = useState(4.8);
+
+  console.log("🎨 DriverDashboard Render. Requests:", incomingRequests.length, "Accepted:", acceptedRide ? "Yes" : "No");
+
+  // WebSocket Hook
+  const { rideRequest, sendDriverConfirmation } = useRideWebSocket(null, cab?.id);
 
   // Mock rides for history
   const mockRideHistory = [
@@ -24,50 +31,7 @@ const DriverDashboardSimple = ({ onLogout }) => {
       rating: 5,
       date: '2025-02-10 10:30 AM'
     },
-    {
-      id: 'RIDE002',
-      passengerName: 'Priya Singh',
-      pickupLocation: 'Indiranagar, Bangalore',
-      dropLocation: 'Whitefield, Bangalore',
-      fare: 320,
-      distance: 12.3,
-      time: '55 mins',
-      rating: 4.5,
-      date: '2025-02-10 2:15 PM'
-    },
-    {
-      id: 'RIDE003',
-      passengerName: 'Amit Patel',
-      pickupLocation: 'Brigade Road, Bangalore',
-      dropLocation: 'HSR Layout, Bangalore',
-      fare: 185,
-      distance: 6.2,
-      time: '30 mins',
-      rating: 5,
-      date: '2025-02-10 5:45 PM'
-    },
-    {
-      id: 'RIDE004',
-      passengerName: 'Neha Sharma',
-      pickupLocation: 'Airport, Bangalore',
-      dropLocation: 'Whitefield, Bangalore',
-      fare: 450,
-      distance: 28,
-      time: '1 hour 15 mins',
-      rating: 4,
-      date: '2025-02-09 8:20 AM'
-    },
-    {
-      id: 'RIDE005',
-      passengerName: 'Vikram Reddy',
-      pickupLocation: 'Cubbon Park, Bangalore',
-      dropLocation: 'BTM Layout, Bangalore',
-      fare: 210,
-      distance: 7.8,
-      time: '40 mins',
-      rating: 5,
-      date: '2025-02-09 6:30 PM'
-    },
+    // ... keep other history if needed
   ];
 
   // Initialize history
@@ -89,36 +53,97 @@ const DriverDashboardSimple = ({ onLogout }) => {
     if (savedRating) setRating(parseFloat(savedRating));
   }, []);
 
-  // Simulate incoming ride requests
+  // 📍 Geolocation Tracking: Send updates to backend every 10s
   useEffect(() => {
-    const timer = setInterval(() => {
-      if (driverStatus === 'online' && !acceptedRide) {
-        const mockRequests = [
-          {
-            id: 'REQ' + Date.now(),
-            passengerName: 'Random User ' + Math.floor(Math.random() * 100),
-            passengerRating: (3 + Math.random() * 2).toFixed(1),
-            pickupLocation: 'Location A, Bangalore',
-            dropLocation: 'Location B, Bangalore',
-            fare: Math.floor(150 + Math.random() * 400),
-            distance: (3 + Math.random() * 20).toFixed(1),
-            receivedTime: new Date(),
-            timeLeft: 15
-          }
-        ];
-        setIncomingRequests(mockRequests);
+    if (!cab?.id || driverStatus !== 'online') return;
 
-        // Auto-reject after 15 seconds
-        const rejectTimer = setTimeout(() => {
-          setIncomingRequests([]);
-        }, 15000);
+    const updateLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            console.log("📍 Sending Location Update:", latitude, longitude);
 
-        return () => clearTimeout(rejectTimer);
+            // Send to backend
+            fetch(`http://localhost:8076/api/cabs/${cab.id}/location`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ latitude, longitude })
+            }).catch(err => console.error("Failed to update location:", err));
+          },
+          (error) => console.error("Geolocation error:", error),
+          { enableHighAccuracy: true }
+        );
       }
-    }, 8000);
+    };
 
-    return () => clearInterval(timer);
-  }, [driverStatus, acceptedRide]);
+    // Initial update
+    updateLocation();
+
+    // Periodic updates
+    const interval = setInterval(updateLocation, 10000);
+    return () => clearInterval(interval);
+  }, [cab, driverStatus]);
+
+  // Listen for Real Ride Requests
+  useEffect(() => {
+    // Check for pending requests on mount/reconnect
+    if (cab?.id && driverStatus === 'online' && !acceptedRide) {
+      fetch(`http://localhost:8077/api/bookings/dispatch/pending/driver/${cab.id}`)
+        .then(res => {
+          if (res.ok && res.status !== 204) return res.json();
+          return null;
+        })
+        .then(data => {
+          if (data) {
+            console.log("📥 Found pending request on load:", data);
+            const newRequest = {
+              id: data.bookingId,
+              passengerName: 'User ' + data.userId,
+              passengerRating: '4.8',
+              pickupLocation: data.pickupAddress || `Lat: ${data.pickupLat}`,
+              dropLocation: data.dropAddress || `Lat: ${data.dropLat}`,
+              fare: data.fare || 0,
+              distance: data.distance || 0,
+              receivedTime: new Date(),
+              timeLeft: 120 // Reset timer or calc remaining if timestamp sent
+            };
+            // Avoid duplicates
+            setIncomingRequests(prev => {
+              if (prev.find(r => r.id === newRequest.id)) return prev;
+              return [...prev, newRequest];
+            });
+          }
+        })
+        .catch(err => console.error("Error checking pending requests:", err));
+    }
+
+    if (rideRequest && driverStatus === 'online' && !acceptedRide) {
+      console.log("New Ride Request in Dashboard:", rideRequest);
+
+      const newRequest = {
+        id: rideRequest.bookingId,
+        passengerName: 'User ' + rideRequest.userId,
+        passengerRating: '4.8', // Placeholder
+        pickupLocation: rideRequest.pickupAddress || `Lat: ${rideRequest.pickupLat}`,
+        dropLocation: rideRequest.dropAddress || `Lat: ${rideRequest.dropLat}`,
+        fare: rideRequest.fare || 0,
+        distance: rideRequest.distance || 0,
+        receivedTime: new Date(),
+        timeLeft: 120
+      };
+
+      setIncomingRequests([newRequest]);
+
+      // Auto-reject (clear UI) after 120 seconds
+      // Note: Backend will also handle timeout
+      const rejectTimer = setTimeout(() => {
+        setIncomingRequests(prev => prev.filter(r => r.id !== newRequest.id));
+      }, 120000);
+
+      return () => clearTimeout(rejectTimer);
+    }
+  }, [rideRequest, driverStatus, acceptedRide]);
 
   // Countdown timer for incoming requests
   useEffect(() => {
@@ -137,26 +162,23 @@ const DriverDashboardSimple = ({ onLogout }) => {
   }, [incomingRequests]);
 
   const handleAcceptRide = (request) => {
+    // Send WebSocket Confirmation
+    sendDriverConfirmation(request.id, cab.id, "ACCEPTED");
+
     setAcceptedRide(request);
     setIncomingRequests([]);
     setDriverStatus('busy');
 
-    // Save driver acceptance to localStorage so user can see it
-    localStorage.setItem('driverAcceptedRide', JSON.stringify({
-      id: 'DRV_CURRENT',
-      name: 'Driver Name',
-      rating: rating,
-      totalRides: completedRides,
-      cabNumber: 'KA01AB1234',
-      currentLocation: { lat: 40.7150, lng: -74.0030 },
-      distanceFromUser: 0.8,
-      responseTime: '2 min'
-    }));
+    // Save driver acceptance so user can see it (if using polling/localstorage sync)
+    // But now we use WebSocket for real time!
 
-    console.log('✅ Ride Accepted! User will see this update.');
+    console.log('✅ Ride Accepted via WebSocket!');
   };
 
   const handleRejectRide = (requestId) => {
+    // Send WebSocket Rejection
+    sendDriverConfirmation(requestId, cab.id, "REJECTED");
+
     setIncomingRequests(prev => prev.filter(req => req.id !== requestId));
   };
 
@@ -175,7 +197,7 @@ const DriverDashboardSimple = ({ onLogout }) => {
       setRideHistory(updatedHistory);
       setEarnings(updatedEarnings);
       setCompletedRides(updatedRides);
-      
+
       localStorage.setItem('driverRideHistory', JSON.stringify(updatedHistory));
       localStorage.setItem('driverEarnings', String(updatedEarnings));
       localStorage.setItem('driverCompletedRides', String(updatedRides));

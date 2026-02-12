@@ -47,6 +47,7 @@ public class Booking {
     private String driverName;
     private String driverPhone;
     private String cabNumber;
+    private String cabType;
     
     public Booking() {}
     
@@ -117,6 +118,10 @@ public class Booking {
     
     public String getCabNumber() { return cabNumber; }
     public void setCabNumber(String cabNumber) { this.cabNumber = cabNumber; }
+
+    public String getCabType() { return cabType; }
+    public void setCabType(String cabType) { this.cabType = cabType; }
+    
     
     public enum BookingStatus {
         PENDING, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED

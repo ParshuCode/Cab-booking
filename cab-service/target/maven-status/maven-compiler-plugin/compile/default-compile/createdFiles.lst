@@ -1,0 +1,13 @@
+com\cabbooking\cabservice\model\Cab$CabStatus.class
+com\cabbooking\cabservice\dto\RideRequestDTO.class
+com\cabbooking\cabservice\model\Location.class
+com\cabbooking\cabservice\service\CabService.class
+com\cabbooking\cabservice\model\Cab.class
+com\cabbooking\cabservice\config\WebSocketConfig.class
+com\cabbooking\cabservice\repository\CabRepository.class
+com\cabbooking\cabservice\repository\LocationRepository.class
+com\cabbooking\cabservice\model\Cab$CabType.class
+com\cabbooking\cabservice\controller\CabController.class
+com\cabbooking\cabservice\CabServiceApplication.class
+com\cabbooking\cabservice\dto\LocationUpdateRequest.class
+com\cabbooking\cabservice\model\LocationType.class

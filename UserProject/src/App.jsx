@@ -30,7 +30,7 @@ function App() {
   const [pickupLocation, setPickupLocation] = useState(null);
   const [dropLocation, setDropLocation] = useState(null);
   const [driverData, setDriverData] = useState(null);
-  
+
 
   useEffect(() => {
     // Check if role is already selected
@@ -117,22 +117,22 @@ function App() {
       //   return <CabBooking user={user} />;
       case 'book':
         return <BookCabPage
-            user={user}
-            pickupLocation={pickupLocation}
-            dropLocation={dropLocation}
-            setPickupLocation={setPickupLocation}
-            setDropLocation={setDropLocation}
-            setCurrentPage={setCurrentPage}
-          />;
+          user={user}
+          pickupLocation={pickupLocation}
+          dropLocation={dropLocation}
+          setPickupLocation={setPickupLocation}
+          setDropLocation={setDropLocation}
+          setCurrentPage={setCurrentPage}
+        />;
       case 'profile':
         return <UserProfile user={user} />;
-        
+
       case 'user-ride':
         return <UserRidePage
-            user={user}
-            pickupLocation={pickupLocation}
-            dropLocation={dropLocation}
-          />;
+          user={user}
+          pickupLocation={pickupLocation}
+          dropLocation={dropLocation}
+        />;
       case 'bookings':
         return <MyBookings user={user} />;
       case 'payment':
@@ -142,13 +142,13 @@ function App() {
       case 'cab-login':
         return <CabLogin onLogin={(cabData) => { setCab(cabData); setCurrentPage('driver-dashboard'); }} />;
       case 'cab-dashboard':
-        return <DriverDashboardSimple onLogout={handleCabLogout} />;
+        return <DriverDashboardSimple cab={cab} onLogout={handleCabLogout} />;
       case 'booking-flow':
-        return <BookingFlow />;
+        return <BookingFlow user={user} />;
       case 'ride-tracking':
         return <UserRideTracking onCancel={() => setCurrentPage('home')} />;
       case 'driver-dashboard':
-        return <DriverDashboardSimple onLogout={handleCabLogout} />;
+        return <DriverDashboardSimple cab={cab} onLogout={handleCabLogout} />;
       default:
         return <QuickAccess onPageChange={handlePageChange} />;
     }
@@ -165,14 +165,14 @@ function App() {
 
   return (
     <div className="App">
-      <Navigation 
+      <Navigation
         userRole={userRole}
-        user={user} 
+        user={user}
         cab={cab}
-        onLogout={handleLogout} 
+        onLogout={handleLogout}
         onCabLogout={handleCabLogout}
-        currentPage={currentPage} 
-        onPageChange={handlePageChange} 
+        currentPage={currentPage}
+        onPageChange={handlePageChange}
       />
       <main className="main-content">
         {renderCurrentPage()}

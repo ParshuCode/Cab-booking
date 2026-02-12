@@ -11,6 +11,7 @@ export const useRideWebSocket = (userId, driverId = null) => {
   const [rideConfirmation, setRideConfirmation] = useState(null);
   const [rideRejection, setRideRejection] = useState(null);
   const [driverMessage, setDriverMessage] = useState(null);
+  const [rideRequest, setRideRequest] = useState(null); // New state for ride requests
   const [error, setError] = useState(null);
   const stompClient = useRef(null);
 
@@ -98,7 +99,7 @@ export const useRideWebSocket = (userId, driverId = null) => {
   const handleRideRequest = (message) => {
     const data = JSON.parse(message.body);
     console.log("📥 Ride request received:", data);
-    // This would be handled by driver app
+    setRideRequest(data);
   };
 
   const handleError = (message) => {
@@ -186,6 +187,7 @@ export const useRideWebSocket = (userId, driverId = null) => {
     rideConfirmation,
     rideRejection,
     driverMessage,
+    rideRequest,
     sendRideRequest,
     sendDriverConfirmation,
     sendMessageToUser,

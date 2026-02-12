@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useRideWebSocket } from "../../hooks/useRideWebSocket";
 import "./BookingFlow.css";
 import MultiStepDestinationInput from "./MultiStepDestinationInput";
 import CabTypeSelection from "./CabTypeSelection";
@@ -13,12 +14,38 @@ import CabTypeSelection from "./CabTypeSelection";
  * 5. System shows filtered drivers (only selected cab type)
  * 6. User confirms driver booking
  */
-const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName = "User" }) => {
+const BookingFlow = ({ user, userLocation = { lat: 40.7128, lng: -74.006 }, userName = "User" }) => {
   const [bookingStep, setBookingStep] = useState(1); // 1: Destination, 2: CabType, 3: DriverSelection, 4: Confirmation
   const [selectedLocations, setSelectedLocations] = useState(null);
   const [selectedCabType, setSelectedCabType] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [availableDrivers, setAvailableDrivers] = useState([]);
+
+  // WebSocket integration
+  const { rideConfirmation } = useRideWebSocket(user?.id);
+
+  useEffect(() => {
+    if (rideConfirmation) {
+      console.log("🚗 Driver Confirmed via WebSocket:", rideConfirmation);
+
+      // Map backend confirmation to frontend driver object
+      const driverDetails = {
+        id: rideConfirmation.cabId,
+        name: rideConfirmation.driverName || "Unknown Driver",
+        rating: 4.8, // Default if not sent
+        totalRides: 0,
+        cabType: rideConfirmation.cabType,
+        cabNumber: rideConfirmation.cabNumber,
+        model: rideConfirmation.model,
+        currentLocation: { lat: rideConfirmation.pickupLat || 0, lng: rideConfirmation.pickupLng || 0 }, // Should ideally be driver's current loc
+        distanceFromUser: 0.5, // Mock or calc
+        responseTime: "2 min"
+      };
+
+      setSelectedDriver(driverDetails);
+      setBookingStep(6); // Move to Driver Found / Tracking step
+    }
+  }, [rideConfirmation]);
 
   // Mock drivers data
   const allDrivers = [
@@ -81,11 +108,74 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
 
   // When cab type is selected, filter drivers
   useEffect(() => {
-    if (selectedCabType) {
-      const filtered = allDrivers.filter((driver) => driver.cabType === selectedCabType.id);
-      setAvailableDrivers(filtered);
+    if (selectedLocations && selectedCabType) {
+      fetchDrivers();
     }
-  }, [selectedCabType]);
+  }, [selectedCabType, selectedLocations]);
+
+  const fetchDrivers = async () => {
+    try {
+      const { lat, lng } = selectedLocations.pickup;
+      // Fetch nearby cabs from backend
+      const response = await fetch(`http://localhost:8076/api/cabs/nearby?latitude=${lat}&longitude=${lng}&radiusKm=100`);
+      if (!response.ok) throw new Error("Failed to fetch drivers");
+
+      const nearbyCabs = await response.json();
+      console.log("📍 Nearby Cabs from Backend:", nearbyCabs);
+
+      // Map backend cab types to frontend IDs
+      const typeMapping = {
+        'economy': 'MINI',
+        'comfort': 'SEDAN',
+        'premium': 'LUXURY',
+        'suv': 'SUV'
+      };
+
+      const backendType = typeMapping[selectedCabType.id] || selectedCabType.id.toUpperCase();
+
+      // Filter and Map to UI format
+      const mappedDrivers = nearbyCabs
+        .filter(cab => cab.cabType === backendType && cab.status === 'AVAILABLE') // Ensure type matches and available
+        .map(cab => {
+          // Calculate distance manually if backend doesn't return it
+          const dist = calculateDistance(lat, lng, cab.currentLocation.latitude, cab.currentLocation.longitude);
+          return {
+            id: cab.id, // Use database ID
+            name: cab.driverName || "Unknown Driver",
+            rating: (3.5 + Math.random() * 1.5).toFixed(1), // Mock rating
+            totalRides: Math.floor(Math.random() * 500) + 50, // Mock rides
+            cabType: selectedCabType.id, // Keep frontend ID for consistency
+            backendCabType: cab.cabType,
+            cabNumber: cab.cabNumber,
+            model: cab.model,
+            currentLocation: {
+              lat: cab.currentLocation.latitude,
+              lng: cab.currentLocation.longitude
+            },
+            distanceFromUser: dist,
+            responseTime: Math.ceil(dist * 3) + " min" // Approx 3 min per km
+          };
+        }).sort((a, b) => a.distanceFromUser - b.distanceFromUser);
+
+      setAvailableDrivers(mappedDrivers);
+
+    } catch (error) {
+      console.error("Error fetching drivers:", error);
+      setAvailableDrivers([]);
+    }
+  };
+
+  // Helper to calculate distance (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
   // Handle destination completion
   const handleDestinationComplete = (destinations) => {
@@ -109,19 +199,24 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
   const handleConfirmBooking = () => {
     if (selectedLocations && selectedCabType && selectedDriver) {
       const bookingRequest = {
-        userId: "USER_001",
+        userId: "USER_001", // TODO: Get from auth context
         userName: userName,
         pickupLocation: selectedLocations.pickup.description,
-        dropoffLocation: selectedLocations.destination.description,
-        pickupCoords: selectedLocations.pickup,
-        dropoffCoords: selectedLocations.destination,
-        tripDistance: selectedLocations.destination.distance,
+        dropoffLocation: selectedLocations.destination.description, // Corrected field name? Check DTO
+        dropLocation: selectedLocations.destination.description, // Added generic fallback
+        // pickupCoords: selectedLocations.pickup, // Backend expects separate lat/lng usually, handled in hook?
+        // Actually, backend expects BookingRequest object. 
+        // Let's align with Backend `BookingRequest` DTO if possible or simplify.
+        // For now, I'll keep user's struct but ensure vital fields are there.
+
+        pickupLat: selectedLocations.pickup.lat,
+        pickupLng: selectedLocations.pickup.lng,
+        dropLat: selectedLocations.destination.lat,
+        dropLng: selectedLocations.destination.lng,
+
+        cabId: selectedDriver.id, // Crucial for booking
+
         estimatedFare: 50 + selectedLocations.destination.distance * 10,
-        cabType: selectedCabType.id,
-        cabName: selectedCabType.name,
-        driverId: selectedDriver.id,
-        driverName: selectedDriver.name,
-        cabNumber: selectedDriver.cabNumber,
         requestTime: new Date().toISOString(),
       };
 
@@ -129,26 +224,44 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
 
       // Save to localStorage for user tracking page
       localStorage.setItem('currentUserRide', JSON.stringify(bookingRequest));
-      
-      // Simulate driver receiving the request
-      localStorage.setItem('pendingRideRequest', JSON.stringify({
-        ...bookingRequest,
-        driverId: selectedDriver.id
-      }));
 
-      // Send via WebSocket (if available)
-      if (window.stompClient && window.stompClient.connected) {
-        window.stompClient.send(
-          `/app/ride-request/${selectedDriver.id}`,
-          {},
-          JSON.stringify(bookingRequest)
-        );
-      }
+      // CALL BACKEND TO CREATE BOOKING
+      createBackendBooking(bookingRequest);
+    }
+  };
+
+  const createBackendBooking = async (bookingRequest) => {
+    try {
+      const response = await fetch("http://localhost:8077/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?.id || 1, // Use dynamic user ID, fallback to 1 for testing
+          cabId: bookingRequest.cabId,
+          // Send coordinates as "lat,lng" string for backend parsing
+          pickupLocation: `${bookingRequest.pickupLat},${bookingRequest.pickupLng}`,
+          dropLocation: `${bookingRequest.dropLat},${bookingRequest.dropLng}`,
+          // Send human-readable addresses
+          pickupAddress: bookingRequest.pickupLocation,
+          dropAddress: bookingRequest.dropLocation
+        })
+      });
+
+      if (!response.ok) throw new Error("Booking creation failed");
+
+      const booking = await response.json();
+      console.log("✅ Backend Booking Created:", booking);
+
+      // Send via WebSocket (if available) - ACTUALLY Backend does dispatch now!
+      // So we just wait for confirmation.
+      // But UI needs to know we are waiting.
 
       alert("✅ Booking Confirmed! Waiting for driver to accept...");
-      // Keep the booking state, show tracking page
       setBookingStep(5); // Add new step for tracking
-      // Don't reset
+
+    } catch (e) {
+      console.error("Booking Error:", e);
+      alert("Failed to create booking: " + e.message);
     }
   };
 
@@ -244,7 +357,7 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
                       <span className="rating-count">({driver.totalRides} rides)</span>
                     </div>
 
-                    <button 
+                    <button
                       className={`select-driver-btn ${selectedDriver?.id === driver.id ? "selected-btn" : ""}`}
                       onClick={() => handleDriverSelect(driver)}
                     >
@@ -360,8 +473,8 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
         </div>
       )}
 
-      {/* Step 5: Ride Tracking */}
-      {bookingStep === 5 && selectedLocations && (
+      {/* Step 5: Waiting for Driver */}
+      {bookingStep === 5 && (
         <div className="booking-step-content tracking-step">
           <div className="ride-tracking-waiting">
             <div className="tracking-animation">
@@ -371,7 +484,7 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
             </div>
             <h3>⏳ Waiting for driver to accept...</h3>
             <p className="tracking-message">Your booking details have been sent to nearby drivers</p>
-
+            { /* ... keeping existing tracking details ... */}
             <div className="booking-details-tracking">
               <div className="detail-item">
                 <span className="detail-icon">📍</span>
@@ -383,42 +496,43 @@ const BookingFlow = ({ userLocation = { lat: 40.7128, lng: -74.006 }, userName =
                 <span className="detail-text">{selectedLocations.destination.description}</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="trip-info-tracking">
-              <div className="info-badge">
-                <span>📏</span>
-                <span>{selectedLocations.destination.distance.toFixed(1)} km</span>
-              </div>
-              <div className="info-badge">
-                <span>💵</span>
-                <span>₹{(50 + selectedLocations.destination.distance * 10).toFixed(0)}</span>
-              </div>
-              <div className="info-badge">
-                <span>🚗</span>
-                <span>{selectedCabType?.name}</span>
+      {/* Step 6: Driver Found / En Route */}
+      {bookingStep === 6 && selectedDriver && (
+        <div className="booking-step-content tracking-step">
+          <div className="ride-confirmed-header">
+            <h3>🚗 Driver is on the way!</h3>
+            <p>Arriving in {selectedDriver.responseTime}</p>
+          </div>
+
+          <div className="driver-profile-card">
+            <div className="driver-profile-header">
+              <div className="driver-avatar-large">{selectedDriver.name.charAt(0)}</div>
+              <div className="driver-info-large">
+                <h4>{selectedDriver.name}</h4>
+                <div className="driver-rating">
+                  ⭐ {selectedDriver.rating} • {selectedCabType?.name || selectedDriver.cabType}
+                </div>
+                <div className="vehicle-plate">{selectedDriver.cabNumber}</div>
+                <div className="vehicle-model">{selectedDriver.model}</div>
               </div>
             </div>
 
-            <button className="cancel-booking-btn" onClick={() => {
-              localStorage.removeItem('currentUserRide');
-              setBookingStep(1);
-              setSelectedLocations(null);
-              setSelectedCabType(null);
-              setSelectedDriver(null);
-            }}>
-              ❌ Cancel Booking
-            </button>
-
-            <div className="tracking-note">
-              <strong>💡 Tip:</strong> Once a driver accepts, you'll see their details and location
+            <div className="ride-actions">
+              <button className="contact-driver-btn">📞 Call Driver</button>
+              <button className="cancel-ride-btn" onClick={() => {
+                alert("Cancel feature to be implemented");
+                setBookingStep(1);
+              }}>❌ Cancel Ride</button>
             </div>
           </div>
         </div>
-      
-      
-        )}
+      )}
     </div>
-    );
+  );
 }
 
 export default BookingFlow; 

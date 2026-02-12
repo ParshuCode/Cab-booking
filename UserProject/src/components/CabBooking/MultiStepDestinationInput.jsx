@@ -9,8 +9,8 @@ import "./MultiStepDestinationInput.css";
  * Step 4: Select final destination
  * Step 5: Confirm and proceed
  */
-const MultiStepDestinationInput = ({ 
-  onDestinationSet, 
+const MultiStepDestinationInput = ({
+  onDestinationSet,
   userLocation,
   onComplete
 }) => {
@@ -32,9 +32,9 @@ const MultiStepDestinationInput = ({
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
@@ -62,7 +62,7 @@ const MultiStepDestinationInput = ({
     setLoading(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`
+        `http://localhost:8077/api/geocode?query=${encodeURIComponent(input)}`
       );
       const results = await response.json();
 
@@ -107,7 +107,7 @@ const MultiStepDestinationInput = ({
     setLoading(true);
     try {
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(input)}`
+        `http://localhost:8077/api/geocode?query=${encodeURIComponent(input)}`
       );
       const results = await response.json();
 
@@ -192,7 +192,7 @@ const MultiStepDestinationInput = ({
           <p className="step-description">Select your pickup location</p>
 
           {/* Use Current Location Button */}
-          <button 
+          <button
             className="location-btn current"
             onClick={handleUseCurrentLocation}
           >
@@ -260,7 +260,7 @@ const MultiStepDestinationInput = ({
             <div className="location-coords">
               {selectedPickup.lat.toFixed(4)}, {selectedPickup.lng.toFixed(4)}
             </div>
-            <button 
+            <button
               className="edit-btn"
               onClick={() => {
                 setStep(1);
@@ -271,7 +271,7 @@ const MultiStepDestinationInput = ({
               ✏️ Edit
             </button>
           </div>
-          <button 
+          <button
             className="proceed-btn"
             onClick={() => setStep(3)}
           >
@@ -325,7 +325,7 @@ const MultiStepDestinationInput = ({
             )}
           </div>
 
-          <button 
+          <button
             className="back-btn"
             onClick={() => setStep(2)}
           >
@@ -376,7 +376,7 @@ const MultiStepDestinationInput = ({
 
           {/* Action Buttons */}
           <div className="action-buttons">
-            <button 
+            <button
               className="edit-location-btn"
               onClick={() => {
                 setSelectedDestination(null);
@@ -387,7 +387,7 @@ const MultiStepDestinationInput = ({
             >
               ✏️ Change Destination
             </button>
-            <button 
+            <button
               className="confirm-btn"
               onClick={handleFinalConfirm}
             >

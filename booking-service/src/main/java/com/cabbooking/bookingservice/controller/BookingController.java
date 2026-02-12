@@ -145,4 +145,15 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(null);
         }
     }
+    @Autowired
+    private com.cabbooking.bookingservice.service.RideDispatchService rideDispatchService;
+
+    @GetMapping("/dispatch/pending/driver/{driverId}")
+    public ResponseEntity<com.cabbooking.bookingservice.dto.RideRequestDTO> getPendingDispatchForDriver(@PathVariable Long driverId) {
+        com.cabbooking.bookingservice.dto.RideRequestDTO pending = rideDispatchService.getPendingInviteForDriver(driverId);
+        if (pending != null) {
+            return ResponseEntity.ok(pending);
+        }
+        return ResponseEntity.noContent().build();
+    }
 } 

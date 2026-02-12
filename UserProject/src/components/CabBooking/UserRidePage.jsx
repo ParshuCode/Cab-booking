@@ -20,10 +20,27 @@ export default function UserRidePage({ user, pickupLocation, dropLocation }) {
       reconnectDelay: 5000,
     });
     client.onConnect = () => {
-      client.subscribe(`/queue/user-${uid}`, (msg) => {
-        const cabData = JSON.parse(msg.body);
-        setAssignedCab(cabData);
-        setBookingStatus("assigned");
+      // Listen for Confirmation
+      client.subscribe(`/topic/user/${uid}/confirmation`, (msg) => {
+        const data = JSON.parse(msg.body);
+        console.log("✅ Ride Confirmed:", data);
+        if (data.status === "CONFIRMED" && data.driver) {
+          setAssignedCab({
+            ...data.driver,
+            cabId: data.driver.id, // Map for polling
+            bookingId: data.booking.id
+          });
+          setBookingStatus("assigned");
+          setFare(data.booking.fare);
+        }
+      });
+
+      // Listen for Errors/No Drivers
+      client.subscribe(`/topic/user/${uid}/error`, (msg) => {
+        const data = JSON.parse(msg.body);
+        console.error("❌ Ride Error:", data);
+        alert(data.message || "An error occurred");
+        setBookingStatus("awaiting"); // Reset or keep waiting?
       });
     };
     client.activate();
