@@ -141,7 +141,7 @@ const MapWithCabs = ({
   dropLocation: propDropLocation,
   showRoute = false                // <-- Show blue line when true
 }) => {
-  const { isLoaded } = useLoadScript({ googleMapsApiKey: apiKey });
+  const { isLoaded, loadError } = useLoadScript({ googleMapsApiKey: apiKey });
   const [cabs, setCabs] = useState([]);
   const [dropLocation, setDropLoc] = useState(null);
   const [directions, setDirections] = useState(null);
@@ -169,7 +169,7 @@ const MapWithCabs = ({
   // DirectionsService: draw route from pickup to drop on "showRoute"
   useEffect(() => {
     if (
-      isLoaded && showRoute && userLocation && propDropLocation // only in tracking mode
+      isLoaded && !loadError && showRoute && userLocation && propDropLocation // only in tracking mode
     ) {
       const directionsService = new window.google.maps.DirectionsService();
       directionsService.route(
@@ -189,9 +189,46 @@ const MapWithCabs = ({
     } else {
       setDirections(null);
     }
-  }, [isLoaded, showRoute, userLocation, propDropLocation]);
+  }, [isLoaded, loadError, showRoute, userLocation, propDropLocation]);
 
-  if (!isLoaded) return <div>Loading map...</div>;
+  if (loadError) {
+    const lat = userLocation?.lat || 20.2961;
+    const lng = userLocation?.lng || 85.8245;
+    return (
+      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", position: 'relative' }}>
+        {/* OpenStreetMap Fallback */}
+        <div style={{ width: "100%", height: "400px", background: "#e0e0e0" }}>
+          <iframe
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            scrolling="no"
+            marginHeight="0"
+            marginWidth="0"
+            src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.05}%2C${lat - 0.05}%2C${lng + 0.05}%2C${lat + 0.05}&layer=mapnik&marker=${lat}%2C${lng}`}
+            style={{ border: 1 }}
+          ></iframe>
+          <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.7)', color: 'white', padding: '5px 10px', borderRadius: '4px', fontSize: '10px' }}>
+            Map Data © OpenStreetMap
+          </div>
+        </div>
+        {!showRoute && dropLocation && (
+          <RideRequestForm
+            user={user}
+            pickupLocation={userLocation}
+            dropLocation={dropLocation}
+            onSuccess={() => {
+              setPickupLocation && setPickupLocation(userLocation);
+              setDropLocation && setDropLocation(dropLocation);
+              setCurrentPage && setCurrentPage('user-ride');
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (!isLoaded) return <div style={{ color: "white", padding: "20px" }}>Loading map...</div>;
 
   return (
     <div>

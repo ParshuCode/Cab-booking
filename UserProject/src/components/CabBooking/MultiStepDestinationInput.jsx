@@ -41,12 +41,70 @@ const MultiStepDestinationInput = ({
 
   // Step 1: Use current location or enter pickup manually
   const handleUseCurrentLocation = () => {
+    if (!userLocation) {
+      setError("Location not available yet");
+      return;
+    }
     setSelectedPickup({
       lat: userLocation.lat,
       lng: userLocation.lng,
       description: "Current Location",
     });
     setStep(2);
+  };
+
+  // ... (keeping other code) ...
+
+  // Render part
+  {/* Use Current Location Button */ }
+  <button
+    className="location-btn current"
+    onClick={handleUseCurrentLocation}
+    disabled={!userLocation}
+  >
+    <span className="btn-icon">📍</span>
+    <div>
+      <div className="btn-title">Use Current Location</div>
+      <div className="btn-subtitle">
+        {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : "Fetching location..."}
+      </div>
+    </div>
+  </button>
+
+  // Helper: Geocode fallback (Local -> OSM)
+  const fetchGeocode = async (query) => {
+    try {
+      // Try Local Backend First
+      const response = await fetch(
+        `http://localhost:8077/api/geocode?query=${encodeURIComponent(query)}`
+      );
+      if (response.ok) {
+        return await response.json();
+      }
+      throw new Error("Local backend failed");
+    } catch (localErr) {
+      console.warn("Local geocode failed, trying OSM...", localErr);
+      // Fallback to OpenStreetMap (Nominatim)
+      try {
+        const osmRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            query
+          )}`
+        );
+        if (osmRes.ok) {
+          const osmData = await osmRes.json();
+          // Map OSM format to our expected format
+          return osmData.map((item) => ({
+            display_name: item.display_name,
+            lat: item.lat,
+            lon: item.lon,
+          }));
+        }
+      } catch (osmErr) {
+        console.error("OSM geocode failed", osmErr);
+      }
+    }
+    return [];
   };
 
   // Step 1: Search for pickup location
@@ -61,13 +119,9 @@ const MultiStepDestinationInput = ({
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:8077/api/geocode?query=${encodeURIComponent(input)}`
-      );
-      const results = await response.json();
-
+      const results = await fetchGeocode(input);
       setPickupSuggestions(
-        results.slice(0, 3).map((result) => ({
+        results.slice(0, 5).map((result) => ({
           name: result.display_name,
           lat: parseFloat(result.lat),
           lng: parseFloat(result.lon),
@@ -82,18 +136,6 @@ const MultiStepDestinationInput = ({
     }
   };
 
-  // Step 2: Confirm pickup and move to destination
-  const handleConfirmPickup = (suggestion) => {
-    setSelectedPickup({
-      lat: suggestion.lat,
-      lng: suggestion.lng,
-      description: suggestion.name,
-    });
-    setStep(3);
-    setPickupInput("");
-    setPickupSuggestions([]);
-  };
-
   // Step 3: Search for destination
   const handleDestinationSearch = async (input) => {
     setDestinationInput(input);
@@ -106,13 +148,9 @@ const MultiStepDestinationInput = ({
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `http://localhost:8077/api/geocode?query=${encodeURIComponent(input)}`
-      );
-      const results = await response.json();
-
+      const results = await fetchGeocode(input);
       setDestinationSuggestions(
-        results.slice(0, 3).map((result) => ({
+        results.slice(0, 5).map((result) => ({
           name: result.display_name,
           lat: parseFloat(result.lat),
           lng: parseFloat(result.lon),
@@ -189,18 +227,19 @@ const MultiStepDestinationInput = ({
       {step === 1 && (
         <div className="step-content pickup-step">
           <h3>📍 Where are you now?</h3>
-          <p className="step-description">Select your pickup location</p>
+          <p className="step-description">Select your pickup location (v2.0)</p>
 
           {/* Use Current Location Button */}
           <button
             className="location-btn current"
             onClick={handleUseCurrentLocation}
+            disabled={!userLocation}
           >
             <span className="btn-icon">📍</span>
             <div>
               <div className="btn-title">Use Current Location</div>
               <div className="btn-subtitle">
-                {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                {userLocation ? `${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : "Fetching location..."}
               </div>
             </div>
           </button>

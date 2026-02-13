@@ -7,11 +7,13 @@ import "./CabTypeSelection.css";
  * User selects cab type first, then only those cab types are shown from drivers
  * Displays estimated fare and vehicle details
  */
-const CabTypeSelection = ({ 
-  onCabTypeSelect, 
-  tripDistance,
-  estimatedFare 
+const CabTypeSelection = ({
+  onCabTypeSelect,
+  tripDistance = 0,
+  estimatedFare = 0
 }) => {
+  const safeDistance = Number(tripDistance) || 0;
+
   const [selectedCabType, setSelectedCabType] = useState(null);
 
   const cabTypes = [
@@ -58,7 +60,7 @@ const CabTypeSelection = ({
   ];
 
   const calculateFare = (cabType) => {
-    return cabType.basePrice + (tripDistance * cabType.pricePerKm);
+    return cabType.basePrice + (safeDistance * cabType.pricePerKm);
   };
 
   const handleCabTypeSelect = (cabType) => {
@@ -71,7 +73,7 @@ const CabTypeSelection = ({
       <div className="selection-header">
         <h3>🚗 Select Vehicle Type</h3>
         <p className="selection-subtitle">
-          Available vehicles for your {tripDistance.toFixed(1)} km trip
+          Available vehicles for your {safeDistance.toFixed(1)} km trip
         </p>
       </div>
 
@@ -81,7 +83,7 @@ const CabTypeSelection = ({
           <span className="summary-icon">📏</span>
           <div>
             <div className="summary-label">Distance</div>
-            <div className="summary-value">{tripDistance.toFixed(2)} km</div>
+            <div className="summary-value">{safeDistance.toFixed(2)} km</div>
           </div>
         </div>
         <div className="summary-divider"></div>
@@ -89,7 +91,7 @@ const CabTypeSelection = ({
           <span className="summary-icon">⏱️</span>
           <div>
             <div className="summary-label">Est. Time</div>
-            <div className="summary-value">{(tripDistance / 40 * 60).toFixed(0)} min</div>
+            <div className="summary-value">{(safeDistance / 40 * 60).toFixed(0)} min</div>
           </div>
         </div>
       </div>
@@ -142,7 +144,7 @@ const CabTypeSelection = ({
               </div>
 
               {/* Select Button */}
-              <button 
+              <button
                 className={`select-btn ${isSelected ? "selected-btn" : ""}`}
                 onClick={() => handleCabTypeSelect(cabType)}
               >
@@ -167,8 +169,8 @@ const CabTypeSelection = ({
                     <span>₹{cabType.basePrice}</span>
                   </div>
                   <div className="breakdown-item">
-                    <span>Distance ({tripDistance.toFixed(2)} km)</span>
-                    <span>₹{(tripDistance * cabType.pricePerKm).toFixed(0)}</span>
+                    <span>Distance ({safeDistance.toFixed(2)} km)</span>
+                    <span>₹{(safeDistance * cabType.pricePerKm).toFixed(0)}</span>
                   </div>
                   <div className="breakdown-item total">
                     <span>Total Estimated</span>
@@ -177,6 +179,7 @@ const CabTypeSelection = ({
                 </div>
               );
             }
+
             return null;
           })}
         </div>

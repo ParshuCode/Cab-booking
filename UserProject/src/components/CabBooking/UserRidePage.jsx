@@ -12,6 +12,40 @@ export default function UserRidePage({ user, pickupLocation, dropLocation, setCu
   const pollIntervalRef = useRef(null);
   const statusPollRef = useRef(null);
 
+  // Restore state from localStorage if available
+  useEffect(() => {
+    const savedRide = localStorage.getItem('currentUserRide');
+    if (savedRide) {
+      try {
+        const ride = JSON.parse(savedRide);
+        console.log("🔄 Restoring saved ride:", ride);
+
+        // Map backend booking object to assignedCab format
+        // Expected ride structure: { id, cabId, cabDetails: {...}, driver: {...}, status, ... }
+        // Or if it's the raw booking response: { id, cabId, fare, ... }
+
+        // We assume ride has cabId. We might need to fetch driver details if not in ride object.
+        // For now, let's try to set what we have.
+
+        setAssignedCab({
+          bookingId: ride.id,
+          cabId: ride.cabId,
+          // Fallbacks if detailed info isn't in the booking response immediately
+          driverName: ride.driverName || "Driver",
+          cabNumber: ride.cabNumber || "CAB-1234",
+          model: ride.carModel || "Sedan",
+          cabType: ride.cabType || "Comfort"
+        });
+
+        setBookingStatus('assigned');
+        setFare(ride.estimatedFare || ride.fare);
+
+      } catch (e) {
+        console.error("Error restoring ride:", e);
+      }
+    }
+  }, []);
+
   // Status Polling to detect ride completion by driver
   useEffect(() => {
     if (assignedCab?.bookingId) {
@@ -220,6 +254,23 @@ export default function UserRidePage({ user, pickupLocation, dropLocation, setCu
           <div style={{ color: "green", marginTop: "10px" }}>
             The payment window will appear automatically once the driver completes the ride.
           </div>
+          <button
+            onClick={async () => {
+              if (assignedCab?.bookingId) {
+                const res = await fetch(`http://localhost:8077/api/bookings/${assignedCab.bookingId}`);
+                const b = await res.json();
+                if (b.status === 'COMPLETED' && setSelectedBooking && setCurrentPage) {
+                  setSelectedBooking(b);
+                  setCurrentPage('payment');
+                } else {
+                  alert("Ride is not yet marked as completed by driver.");
+                }
+              }
+            }}
+            className="btn btn-sm btn-primary mt-2"
+          >
+            Check Ride Status / Pay
+          </button>
         </div>
       )}
 

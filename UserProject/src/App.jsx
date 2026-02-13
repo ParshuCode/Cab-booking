@@ -1,6 +1,7 @@
 window.global = window;
 import React, { useState, useEffect } from 'react';
 import Navigation from './components/Navigation/Navigation';
+import MainLayout from './components/Layout/MainLayout';
 import RoleSelection from './components/RoleSelection/RoleSelection';
 import Home from './components/Home/Home';
 import Login from './components/UserAuth/Login';
@@ -176,20 +177,17 @@ function App() {
   }
 
   return (
-    <div className="App">
-      <Navigation
-        userRole={userRole}
-        user={user}
-        cab={cab}
-        onLogout={handleLogout}
-        onCabLogout={handleCabLogout}
-        currentPage={currentPage}
-        onPageChange={handlePageChange}
-      />
-      <main className="main-content">
-        {renderCurrentPage()}
-      </main>
-    </div>
+    <MainLayout
+      userRole={userRole}
+      user={user}
+      cab={cab}
+      onLogout={handleLogout}
+      onCabLogout={handleCabLogout}
+      currentPage={currentPage}
+      onPageChange={handlePageChange}
+    >
+      {renderCurrentPage()}
+    </MainLayout>
   );
 }
 

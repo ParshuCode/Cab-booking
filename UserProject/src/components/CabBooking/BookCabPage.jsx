@@ -1,94 +1,61 @@
 import React, { useState } from "react";
 import { useCabAssignmentAndTracking } from "../../hooks/useCabAssignmentAndTracking";
-import LocationRequest from "./LocationRequest"; // Get user's GPS location
-import DriverListingPage from "./DriverListingPage"; // Primary: list-based driver selection
-import MapWithCabs from "./MapWithCabs"; // Fallback: map-based if needed
+import MapWithCabs from "./MapWithCabs";
+import BookingFlow from "./BookingFlow";
+import LocationRequest from "./LocationRequest";
+import "./BookCabPage.css";
 
-export default function BookCabPage({ 
-  user, 
-  pickupLocation, 
+export default function BookCabPage({
+  user,
+  pickupLocation,
   dropLocation,
   setCurrentPage,
   setPickupLocation,
   setDropLocation
 }) {
-  const [rideRequested, setRideRequested] = useState(false);
   const [assignedCab, setAssignedCab] = useState(null);
-  const [useMapMode, setUseMapMode] = useState(false); // Default: false = use driver listing
-  const [locationConfirmed, setLocationConfirmed] = useState(!!pickupLocation); // Track if location is confirmed
-  const { driverLoc, bookingStatus } = useCabAssignmentAndTracking(user?.id);
+  const { driverLoc } = useCabAssignmentAndTracking(user?.id);
 
-  function handleRideRequestSuccess() {
-    setRideRequested(true);
-  }
+  // This function is passed to BookingFlow to update the parent state/map
+  const handleLocationUpdate = (pickup, drop) => {
+    if (pickup) setPickupLocation(pickup);
+    if (drop) setDropLocation(drop);
+  };
 
-  // Step 1: Request location first
-  if (!locationConfirmed || !pickupLocation) {
+  // If no pickup location is set, show the location request screen
+  if (!pickupLocation) {
     return (
       <LocationRequest
         user={user}
-        onLocationReceived={(location) => {
-          console.log("✅ Location confirmed:", location);
-          setPickupLocation({
-            lat: location.lat,
-            lng: location.lng,
-            source: location.source
-          });
-          setLocationConfirmed(true);
-        }}
+        onLocationReceived={(loc) => setPickupLocation(loc)}
       />
     );
   }
 
-  // Step 2: Show driver listing with confirmed location
-  if (true) { // Always use driver listing
-    return (
-      <DriverListingPage
-        user={user}
-        userLocation={pickupLocation}
-        setCurrentPage={setCurrentPage}
-        setPickupLocation={setPickupLocation}
-        setDropLocation={setDropLocation}
-        setAssignedCab={setAssignedCab}
-      />
-    );
-  }
-
-  // FALLBACK: Map mode (not used by default)
   return (
-    <div>
-      <MapWithCabs
-        userLocation={pickupLocation}
-        driverLocation={driverLoc}
-        assignedCab={assignedCab}
-      />
-      <section style={{padding:"24px 0 0 0"}}>
-        {!rideRequested && (
-          <RideRequestForm
-            user={user}
-            pickupLocation={pickupLocation}
-            dropLocation={dropLocation}
-            onSuccess={handleRideRequestSuccess}
-          />
-        )}
-        {rideRequested && bookingStatus === "awaiting" && (
-          <div style={{color:"#6848ff", margin:"12px 0"}}>Ride requested. Awaiting driver assignment...</div>
-        )}
-        {bookingStatus === "assigned" && assignedCab && (
-          <div style={{
-            padding:"14px", background:"#e8e7fd", borderRadius:10, margin:"10px 0"}}>
-            <b>Your cab is on its way!</b><br />
-            <b>Driver:</b> {assignedCab.driverName} <br />
-            <b>Vehicle:</b> {assignedCab.cabNumber} ({assignedCab.cabType}) <br />
-            <b>Driver location:</b>{" "}
-            {driverLoc ? `${driverLoc.lat.toFixed(5)}, ${driverLoc.lng.toFixed(5)}` : "Fetching..."}<br />
-            <span style={{color:"green"}}>Watch the cab marker coming to you! 🚖</span>
-          </div>
-        )}
-        {bookingStatus === "completed" && (
-          <div style={{color:"#097821"}}>Ride completed! Thank you for riding with us.</div>
-        )}
-      </section>
+    <div className="book-cab-page">
+      {/* Left Panel: Booking Controls */}
+      <div className="booking-sidebar glass-panel">
+        <div style={{ position: 'absolute', top: 5, right: 10, fontSize: '0.7em', opacity: 0.5 }}>v2.0</div>
+        <BookingFlow
+          user={user}
+          userLocation={pickupLocation}
+          userName={user?.firstName}
+          setCurrentPage={setCurrentPage}
+          onLocationUpdate={handleLocationUpdate}
+          setAssignedCab={setAssignedCab}
+        />
+      </div>
+
+      {/* Right Panel: Map */}
+      <div className="booking-map-container">
+        <MapWithCabs
+          userLocation={pickupLocation}
+          driverLocation={driverLoc}
+          assignedCab={assignedCab}
+          dropLocation={dropLocation}
+        />
+      </div>
     </div>
   );
 }

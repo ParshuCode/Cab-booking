@@ -2,223 +2,120 @@ import React from 'react';
 import './Home.css';
 
 const Home = ({ user, onPageChange }) => {
-  const features = [
-    {
-      icon: '�',
-      title: 'Instant Booking',
-      description: 'Book your cab in seconds with our intuitive interface'
-    },
-    {
-      icon: '💳',
-      title: 'Transparent Pricing',
-      description: 'No hidden charges, pay exactly what you see upfront'
-    },
-    {
-      icon: '🕐',
-      title: 'Always Available',
-      description: '24/7 service for your morning commute to late-night rides'
-    },
-    {
-      icon: '⭐',
-      title: 'Trusted & Safe',
-      description: 'Verified drivers and real-time tracking for your safety'
-    }
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const recentDestinations = [
+    { name: 'Office', address: 'Tech Park, Sector 5', icon: '🏢' },
+    { name: 'Home', address: 'Green Valley Apts', icon: '🏠' },
+    { name: 'Gym', address: 'FitMax Center', icon: '💪' },
   ];
 
-  const cabTypes = [
-    {
-      type: 'STANDARD',
-      name: 'Standard',
-      price: '₹10/km',
-      passengers: '4',
-      description: 'Perfect for everyday travel',
-      icon: '🚙'
-    },
-    {
-      type: 'PREMIUM',
-      name: 'Premium',
-      price: '₹15/km',
-      passengers: '4',
-      description: 'Comfortable premium experience',
-      icon: '🚘'
-    },
-    {
-      type: 'SUV',
-      name: 'SUV',
-      price: '₹18/km',
-      passengers: '6',
-      description: 'Spacious for groups and families',
-      icon: '🚐'
-    },
-    {
-      type: 'LUXURY',
-      name: 'Luxury',
-      price: '₹25/km',
-      passengers: '4',
-      description: 'Premium luxury experience',
-      icon: '🏎️'
-    }
+  const featuredRides = [
+    { type: 'Standard', price: '₹10/km', eta: '4 min', icon: '🚙' },
+    { type: 'Premium', price: '₹15/km', eta: '6 min', icon: '🚘' },
+    { type: 'SUV', price: '₹18/km', eta: '8 min', icon: '🚐' },
   ];
 
   return (
-    <div className="home-container">
-      {/* Hero Section */}
-      <section className="hero-section">
-        <div className="container flex-between" style={{ minHeight: '100vh', alignItems: 'center' }}>
-          <div className="hero-content">
-            <span className="badge">Welcome to CabBook</span>
-            <h1>Your Journey Awaits</h1>
-            <p className="hero-subtitle">Fast, reliable, and affordable cab booking at your fingertips</p>
-            {!user ? (
-              <div className="hero-buttons">
-                <button
-                  className="btn-primary btn-large"
-                  onClick={() => onPageChange('register')}
-                >
-                  Get Started
-                </button>
-                <button
-                  className="btn-secondary btn-large"
-                  onClick={() => onPageChange('login')}
-                >
-                  Sign In
-                </button>
-              </div>
-            ) : (
-              <div className="hero-buttons">
-                <button
-                  className="btn-primary btn-large"
-                  onClick={() => window.location.href = '/?page=booking-flow'}
-                >
-                  🗺️ Book Now (New)
-                </button>
-                <button
-                  className="btn-secondary btn-large"
-                  onClick={() => onPageChange('bookings')}
-                >
-                  📋 View Bookings
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="hero-image">
-            <div className="hero-visual">
-              <div className="floating-icon large">🚗</div>
-            </div>
-          </div>
+    <div className="dashboard-container">
+      {/* Header Section */}
+      <header className="dashboard-header">
+        <div className="header-greeting">
+          <h1>{greeting()}, <span className="text-primary">{user ? user.firstName : 'Traveler'}</span></h1>
+          <p>Where would you like to go today?</p>
         </div>
-      </section>
+        {user &&
+          <div className="header-stats">
+            <div className="stat-pill glass-panel">
+              <span className="stat-label">Rides</span>
+              <span className="stat-value">12</span>
+            </div>
+            <div className="stat-pill glass-panel">
+              <span className="stat-label">Rating</span>
+              <span className="stat-value">4.8 ★</span>
+            </div>
+          </div>
+        }
+      </header>
 
-      {/* Quick Stats */}
-      <section className="stats-section">
-        <div className="container">
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-number">50K+</div>
-              <div className="stat-label">Happy Riders</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">1M+</div>
-              <div className="stat-label">Rides Completed</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">500+</div>
-              <div className="stat-label">Verified Drivers</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-number">4.8★</div>
-              <div className="stat-label">Average Rating</div>
-            </div>
+      {/* Main Action Area */}
+      <div className="dashboard-grid">
+        {/* Quick Book Widget */}
+        <section className="dashboard-widget glass-card large-widget">
+          <div className="widget-header">
+            <h3>Quick Book</h3>
+            <button className="btn-link" onClick={() => onPageChange('book')}>View Map &rarr;</button>
           </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="features-section">
-        <div className="container">
-          <div className="section-header">
-            <h2>Why Choose CabBook?</h2>
-            <p>Experience the best in cab booking services</p>
-          </div>
-          <div className="features-grid">
-            {features.map((feature, index) => (
-              <div key={index} className="feature-card">
-                <div className="feature-icon">{feature.icon}</div>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Cab Types Section */}
-      <section className="cab-types-section">
-        <div className="container">
-          <div className="section-header">
-            <h2>Choose Your Perfect Ride</h2>
-            <p>Select from our premium fleet of vehicles</p>
-          </div>
-          <div className="cab-types-grid">
-            {cabTypes.map((cab, index) => (
-              <div key={index} className="cab-type-card">
-                <div className="cab-header">
-                  <div className="cab-icon">{cab.icon}</div>
-                  <span className="badge-secondary">{cab.passengers} Seat</span>
+          <div className="quick-destinations">
+            {recentDestinations.map((dest, idx) => (
+              <div key={idx} className="dest-card" onClick={() => onPageChange('book')}>
+                <div className="dest-icon glass-panel">{dest.icon}</div>
+                <div className="dest-info">
+                  <h4>{dest.name}</h4>
+                  <span>{dest.address}</span>
                 </div>
-                <h3>{cab.name}</h3>
-                <div className="cab-price">{cab.price}</div>
-                <p>{cab.description}</p>
-                {user && (
-                  <button 
-                    className="btn-outline"
-                    onClick={() => onPageChange('book')}
-                  >
-                    Book {cab.name}
-                  </button>
-                )}
+              </div>
+            ))}
+            <div className="dest-card add-new" onClick={() => onPageChange('book')}>
+              <div className="dest-icon glass-panel">+</div>
+              <div className="dest-info">
+                <h4>New Trip</h4>
+                <span>Select destination</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Active Promotions / Banner */}
+        <section className="dashboard-widget promo-widget glass-card">
+          <div className="promo-content">
+            <span className="badge badge-primary">PROMO</span>
+            <h3>50% OFF</h3>
+            <p>On your first Premium ride this week.</p>
+            <button className="btn btn-primary btn-small" onClick={() => onPageChange('book')}>Claim Now</button>
+          </div>
+          <div className="promo-visual">🎁</div>
+        </section>
+
+        {/* Ride Selector Preview */}
+        <section className="dashboard-widget glass-card full-width">
+          <div className="widget-header">
+            <h3>Available Rides Nearby</h3>
+          </div>
+          <div className="ride-types-grid">
+            {featuredRides.map((ride, idx) => (
+              <div key={idx} className="ride-preview-card glass-panel">
+                <div className="ride-icon">{ride.icon}</div>
+                <div className="ride-details">
+                  <h4>{ride.type}</h4>
+                  <span className="eta">{ride.eta} away</span>
+                </div>
+                <div className="ride-price">{ride.price}</div>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      {/* CTA Section */}
-      <section className="cta-section">
-        <div className="container">
-          <div className="cta-content">
-            <h2>Ready to Experience Premium Cab Booking?</h2>
-            <p>Join thousands of satisfied customers enjoying hassle-free rides</p>
-            <div className="cta-buttons">
-              {!user ? (
-                <>
-                  <button
-                    className="btn-primary btn-large"
-                    onClick={() => onPageChange('register')}
-                  >
-                    Create Account Now
-                  </button>
-                  <button
-                    className="btn-outline btn-large"
-                    onClick={() => onPageChange('login')}
-                  >
-                    Already have an account?
-                  </button>
-                </>
-              ) : (
-                <button
-                  className="btn-primary btn-large"
-                  onClick={() => onPageChange('book')}
-                >
-                  Book Your Next Ride
-                </button>
-              )}
+      {!user && (
+        <div className="guest-overlay flex-center flex-col">
+          <div className="glass-card p-4 text-center" style={{ maxWidth: '400px' }}>
+            <h2>Join CabBook</h2>
+            <p className="m-2">Sign in to unlock all features and manage your rides.</p>
+            <div className="flex-center gap-2 m-2">
+              <button className="btn btn-primary" onClick={() => onPageChange('login')}>Sign In</button>
+              <button className="btn btn-secondary" onClick={() => onPageChange('register')}>Register</button>
             </div>
           </div>
         </div>
-      </section>
+      )}
     </div>
   );
 };
 
-export default Home; 
+export default Home;

@@ -7,53 +7,35 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
     lastName: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    phoneNumber: '',
-    address: ''
+    phone: '',
+    role: 'PASSENGER'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
       const response = await fetch('http://localhost:8075/api/users/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          password: formData.password,
-          phoneNumber: formData.phoneNumber,
-          address: formData.address
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
 
       if (response.ok) {
-        const user = await response.json();
-        onRegister(user);
+        const text = await response.text();
+        // Auto login or just notify
+        alert("Registration Successful! Please Login.");
+        onSwitchToLogin();
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Registration failed');
+        setError('Registration failed. Email might be in use.');
       }
     } catch (err) {
       setError('Registration failed. Please try again.');
@@ -64,306 +46,56 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <h2>Create New Account</h2>
-        {error && <div className="error-message">{error}</div>}
-        
-        <form onSubmit={handleSubmit}>
+      <div className="auth-card glass-card">
+        <div className="auth-header">
+          <div className="auth-icon">✨</div>
+          <h2>Create Account</h2>
+          <p>Join us and start riding today</p>
+        </div>
+
+        {error && <div className="auth-alert error">{error}</div>}
+
+        <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="firstName">First Name</label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                required
-                placeholder="Enter first name"
-              />
+              <label>First Name</label>
+              <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} required placeholder="John" />
             </div>
-
             <div className="form-group">
-              <label htmlFor="lastName">Last Name</label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                required
-                placeholder="Enter last name"
-              />
+              <label>Last Name</label>
+              <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} required placeholder="Doe" />
             </div>
           </div>
 
           <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                placeholder="Enter password"
-                minLength="6"
-              />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-                placeholder="Confirm password"
-                minLength="6"
-              />
-            </div>
+            <label>Email Address</label>
+            <input type="email" name="email" value={formData.email} onChange={handleChange} required placeholder="name@example.com" />
           </div>
 
           <div className="form-group">
-            <label htmlFor="phoneNumber">Phone Number</label>
-            <input
-              type="tel"
-              id="phoneNumber"
-              name="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              required
-              placeholder="Enter phone number"
-              minLength="10"
-              maxLength="15"
-            />
+            <label>Phone Number</label>
+            <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required placeholder="+1 234 567 8900" />
           </div>
 
           <div className="form-group">
-            <label htmlFor="address">Address</label>
-            <textarea
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              placeholder="Enter your address"
-              rows="3"
-            />
+            <label>Password</label>
+            <input type="password" name="password" value={formData.password} onChange={handleChange} required placeholder="Create a strong password" />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Creating Account...' : 'Register'}
+          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+            {loading ? <span className="loader"></span> : 'Sign Up'}
           </button>
         </form>
 
-        <div className="auth-switch">
-          <p>Already have an account? 
-            <button 
-              type="button" 
-              className="btn-link" 
-              onClick={onSwitchToLogin}
-            >
-              Login here
-            </button>
-          </p>
+        <div className="auth-footer">
+          <p>Already have an account?</p>
+          <button className="btn-link text-primary" onClick={onSwitchToLogin}>
+            Sign In
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-export default Register; 
-
-// import React, { useState } from 'react';
-// import { useNavigate, Link } from "react-router-dom";
-// import './UserAuth.css';
-
-// const Register = ({ onRegister }) => {
-//   const [formData, setFormData] = useState({
-//     firstName: '',
-//     lastName: '',
-//     email: '',
-//     password: '',
-//     confirmPassword: '',
-//     phoneNumber: '',
-//     address: ''
-//   });
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-//   const navigate = useNavigate();
-
-//   const handleChange = (e) => {
-//     setFormData({
-//       ...formData,
-//       [e.target.name]: e.target.value
-//     });
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-
-//     if (formData.password !== formData.confirmPassword) {
-//       setError('Passwords do not match');
-//       return;
-//     }
-//     setLoading(true);
-//     setError('');
-//     try {
-//       const response = await fetch('http://localhost:8075/api/users/register', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify({
-//           firstName: formData.firstName,
-//           lastName: formData.lastName,
-//           email: formData.email,
-//           password: formData.password,
-//           phoneNumber: formData.phoneNumber,
-//           address: formData.address
-//         })
-//       });
-//       if (response.ok) {
-//         const user = await response.json();
-//         onRegister(user);
-//         navigate('/profile');
-//       } else {
-//         const errorData = await response.json();
-//         setError(errorData.message || 'Registration failed');
-//       }
-//     } catch (err) {
-//       setError('Registration failed. Please try again.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <div className="auth-container">
-//       <div className="auth-card">
-//         <h2>Create New Account</h2>
-//         {error && <div className="error-message">{error}</div>}
-
-//         <form onSubmit={handleSubmit}>
-//           <div className="form-row">
-//             <div className="form-group">
-//               <label htmlFor="firstName">First Name</label>
-//               <input
-//                 type="text"
-//                 id="firstName"
-//                 name="firstName"
-//                 value={formData.firstName}
-//                 onChange={handleChange}
-//                 required
-//                 placeholder="Enter first name"
-//               />
-//             </div>
-//             <div className="form-group">
-//               <label htmlFor="lastName">Last Name</label>
-//               <input
-//                 type="text"
-//                 id="lastName"
-//                 name="lastName"
-//                 value={formData.lastName}
-//                 onChange={handleChange}
-//                 required
-//                 placeholder="Enter last name"
-//               />
-//             </div>
-//           </div>
-//           <div className="form-group">
-//             <label htmlFor="email">Email</label>
-//             <input
-//               type="email"
-//               id="email"
-//               name="email"
-//               value={formData.email}
-//               onChange={handleChange}
-//               required
-//               placeholder="Enter your email"
-//             />
-//           </div>
-//           <div className="form-row">
-//             <div className="form-group">
-//               <label htmlFor="password">Password</label>
-//               <input
-//                 type="password"
-//                 id="password"
-//                 name="password"
-//                 value={formData.password}
-//                 onChange={handleChange}
-//                 required
-//                 placeholder="Enter password"
-//                 minLength="6"
-//               />
-//             </div>
-//             <div className="form-group">
-//               <label htmlFor="confirmPassword">Confirm Password</label>
-//               <input
-//                 type="password"
-//                 id="confirmPassword"
-//                 name="confirmPassword"
-//                 value={formData.confirmPassword}
-//                 onChange={handleChange}
-//                 required
-//                 placeholder="Confirm password"
-//                 minLength="6"
-//               />
-//             </div>
-//           </div>
-//           <div className="form-group">
-//             <label htmlFor="phoneNumber">Phone Number</label>
-//             <input
-//               type="tel"
-//               id="phoneNumber"
-//               name="phoneNumber"
-//               value={formData.phoneNumber}
-//               onChange={handleChange}
-//               required
-//               placeholder="Enter phone number"
-//               minLength="10"
-//               maxLength="15"
-//             />
-//           </div>
-//           <div className="form-group">
-//             <label htmlFor="address">Address</label>
-//             <textarea
-//               id="address"
-//               name="address"
-//               value={formData.address}
-//               onChange={handleChange}
-//               placeholder="Enter your address"
-//               rows="3"
-//             />
-//           </div>
-//           <button type="submit" className="btn-primary" disabled={loading}>
-//             {loading ? 'Creating Account...' : 'Register'}
-//           </button>
-//         </form>
-//         <div className="auth-switch">
-//           <p>
-//             Already have an account? <Link to="/login" className="btn-link">Login here</Link>
-//           </p>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Register;
+export default Register;
